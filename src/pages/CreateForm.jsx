@@ -1,125 +1,180 @@
 import { useParams, useNavigate } from "react-router-dom";
 import Button from "../ui/Button";
-import { useQuery } from "@tanstack/react-query";
-import { getForms } from "../services/apiForm";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getFormById } from "../services/apiForm";
+import {
+  getFormStructure,
+  createFormTab,
+  createFormField,
+  deleteFormTab,
+  deleteFormField,
+} from "../services/apiFormBuilder";
 import { useState } from "react";
-import { FiPlus } from "react-icons/fi"; // Import FiPlus icon
-
-// Helper component for rendering expandable JSON nodes
-const JsonNode = ({ label, data }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const isObjectOrArray = typeof data === "object" && data !== null;
-
-  // Determine if a plus sign should be shown
-  const showPlusSign =
-    (label === "header" || label === "lines" || label === "lineDetails") &&
-    Array.isArray(data);
-
-  // Placeholder for adding new item functionality
-  const handleAddItem = (e) => {
-    e.stopPropagation(); // Prevent toggling expansion when clicking plus
-    console.log(`Add item to: ${label}`);
-    // Implement your logic to add a new item to header/lines/lineDetails array
-    // This will likely involve a mutation to update the form data
-  };
-
-  return (
-    <div className="ml-4">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center space-x-1 py-1 text-gray-700 hover:text-gray-900 focus:outline-none"
-        disabled={
-          !isObjectOrArray || (Array.isArray(data) && data.length === 0)
-        }
-      >
-        <span
-          className={`transition-transform duration-200 ${
-            isExpanded && isObjectOrArray ? "rotate-90" : ""
-          } ${!isObjectOrArray || (Array.isArray(data) && data.length === 0) ? "invisible" : ""}`}
-        >
-          &gt;
-        </span>
-        <span className="font-medium">{label}</span>
-        {!isObjectOrArray && (
-          <span className="ml-1 font-normal text-gray-600">
-            {JSON.stringify(data)}
-          </span>
-        )}
-        {Array.isArray(data) && (
-          <span className="ml-1 text-sm text-gray-500">[{data.length}]</span>
-        )}
-
-        {showPlusSign && ( // Conditionally render the plus button inline
-          <button
-            onClick={handleAddItem}
-            className="ml-2 rounded-full p-1 text-blue-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none"
-            title={`Add new item to ${label}`}
-          >
-            <FiPlus className="inline-block text-base" />
-          </button>
-        )}
-      </button>
-
-      {isExpanded && isObjectOrArray && (
-        <div className="border-l border-gray-200 pl-4">
-          {Array.isArray(data) ? (
-            data.length > 0 ? (
-              data.map((item, index) => (
-                <JsonNode key={index} label={`[${index}]`} data={item} />
-              ))
-            ) : (
-              <span className="ml-4 text-sm text-gray-500">(Empty array)</span>
-            )
-          ) : (
-            Object.entries(data).map(([key, value]) => (
-              <JsonNode key={key} label={key} data={value} />
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
+import TreeView from "../components/TreeView";
+import TabModal from "../ui/TabModal";
+import FieldModal from "../ui/FieldModal";
+import toast from "react-hot-toast";
 
 export default function CreateForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const [isTabModalOpen, setIsTabModalOpen] = useState(false);
+  const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
+  const [currentLevel, setCurrentLevel] = useState(null);
+  const [currentParentTabId, setCurrentParentTabId] = useState(null);
+  const [currentTabId, setCurrentTabId] = useState(null);
 
   const {
     isLoading,
-    data: formsData,
+    data: formData,
     error,
   } = useQuery({
-    queryKey: ["forms"],
-    queryFn: getForms,
+    queryKey: ["form", id],
+    queryFn: () => getFormById(id),
+    enabled: !!id,
   });
+
+  const { data: formStructure } = useQuery({
+    queryKey: ["formStructure", id],
+    queryFn: () => getFormStructure(id),
+    enabled: !!id,
+  });
+
+  const createTabMutation = useMutation({
+    mutationFn: createFormTab,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["formStructure", id]);
+      toast.success("Tab added successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to add tab");
+      console.error(error);
+    },
+  });
+
+  const createFieldMutation = useMutation({
+    mutationFn: createFormField,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["formStructure", id]);
+      toast.success("Field added successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to add field");
+      console.error(error);
+    },
+  });
+
+  const deleteTabMutation = useMutation({
+    mutationFn: deleteFormTab,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["formStructure", id]);
+      toast.success("Tab deleted successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to delete tab");
+      console.error(error);
+    },
+  });
+
+  const deleteFieldMutation = useMutation({
+    mutationFn: deleteFormField,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["formStructure", id]);
+      toast.success("Field deleted successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to delete field");
+      console.error(error);
+    },
+  });
+
+  const handleAddTab = (level, parentTabId = null) => {
+    setCurrentLevel(level);
+    setCurrentParentTabId(parentTabId);
+    setIsTabModalOpen(true);
+  };
+
+  const handleAddField = (tabId) => {
+    setCurrentTabId(tabId);
+    setIsFieldModalOpen(true);
+  };
+
+  const handleTabSubmit = (tabName) => {
+    const tabs = formStructure?.tabs || [];
+    const maxOrder =
+      tabs.filter((t) => t.level === currentLevel).length > 0
+        ? Math.max(
+            ...tabs
+              .filter((t) => t.level === currentLevel)
+              .map((t) => t.order_index),
+          )
+        : -1;
+
+    createTabMutation.mutate({
+      form_id: id,
+      parent_tab_id: currentParentTabId,
+      level: currentLevel,
+      name: tabName,
+      order_index: maxOrder + 1,
+    });
+  };
+
+  const handleFieldSubmit = (fieldData) => {
+    const fields = formStructure?.fields || [];
+    const maxOrder =
+      fields.filter((f) => f.tab_id === currentTabId).length > 0
+        ? Math.max(
+            ...fields
+              .filter((f) => f.tab_id === currentTabId)
+              .map((f) => f.order_index),
+          )
+        : -1;
+
+    createFieldMutation.mutate({
+      form_id: id,
+      tab_id: currentTabId,
+      ...fieldData,
+      order_index: maxOrder + 1,
+    });
+  };
+
+  const handleDeleteTab = (tabId) => {
+    if (confirm("Are you sure you want to delete this tab and all its contents?")) {
+      deleteTabMutation.mutate(tabId);
+    }
+  };
+
+  const handleDeleteField = (fieldId) => {
+    if (confirm("Are you sure you want to delete this field?")) {
+      deleteFieldMutation.mutate(fieldId);
+    }
+  };
 
   if (isLoading) return null;
 
-  console.log(id);
+  if (!id) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="text-center">
+          <p className="text-gray-600">No form ID provided</p>
+          <Button onClick={() => navigate(-1)}>Back</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mb-8 flex items-center justify-between">
         <Button onClick={() => navigate(-1)}>Back</Button>
         <h1 className="text-3xl font-bold text-gray-800">
-          Create/Edit Form Layout
+          Form Builder: {formData?.templateName}
         </h1>
       </div>
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-        {/* Left column content */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-xl font-semibold text-gray-700">
-            Form Fields
-          </h2>
-          <p className="text-gray-600">
-            This section will contain draggable form elements.
-          </p>
-        </div>
-
-        {/* Right column content: Tree View with forms data */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-xl font-semibold text-gray-700">
             Tree View
@@ -127,29 +182,39 @@ export default function CreateForm() {
 
           {error && <p className="text-red-500">Error: {error.message}</p>}
 
-          {formsData && (
-            <div className="text-sm">
-              {formsData.length === 0 && (
-                <p className="text-gray-600">No forms available.</p>
-              )}
-              {formsData.map((form) => (
-                <div key={form.id} className="mt-2">
-                  <JsonNode
-                    label={`Template Name: ${form.templateName}`}
-                    data={{
-                      header: form.header,
-                      lines: form.lines,
-                      lineDetails: form.lineDetails,
-                      id: form.id,
-                      created_at: form.created_at,
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
+          {formStructure && (
+            <TreeView
+              formStructure={formStructure}
+              onAddTab={handleAddTab}
+              onDeleteTab={handleDeleteTab}
+              onAddField={handleAddField}
+              onDeleteField={handleDeleteField}
+            />
           )}
         </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-xl font-semibold text-gray-700">
+            Form Preview
+          </h2>
+          <p className="text-gray-600">
+            Preview of your form will appear here.
+          </p>
+        </div>
       </div>
+
+      <TabModal
+        isOpen={isTabModalOpen}
+        onClose={() => setIsTabModalOpen(false)}
+        onSubmit={handleTabSubmit}
+        level={currentLevel}
+      />
+
+      <FieldModal
+        isOpen={isFieldModalOpen}
+        onClose={() => setIsFieldModalOpen(false)}
+        onSubmit={handleFieldSubmit}
+      />
     </div>
   );
 }
