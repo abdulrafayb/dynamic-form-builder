@@ -1,7 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import Button from "../ui/Button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getFormById } from "../services/apiForm";
 import {
   getFormStructure,
   createFormTab,
@@ -32,20 +31,14 @@ export default function CreateForm() {
     error,
   } = useQuery({
     queryKey: ["form", id],
-    queryFn: () => getFormById(id),
-    enabled: !!id,
-  });
-
-  const { data: formStructure } = useQuery({
-    queryKey: ["formStructure", id],
     queryFn: () => getFormStructure(id),
     enabled: !!id,
   });
 
   const createTabMutation = useMutation({
-    mutationFn: createFormTab,
+    mutationFn: ({ level, tabData }) => createFormTab(id, level, tabData),
     onSuccess: () => {
-      queryClient.invalidateQueries(["formStructure", id]);
+      queryClient.invalidateQueries(["form", id]);
       toast.success("Tab added successfully");
     },
     onError: (error) => {
@@ -55,9 +48,10 @@ export default function CreateForm() {
   });
 
   const createFieldMutation = useMutation({
-    mutationFn: createFormField,
+    mutationFn: ({ level, tabId, fieldData }) =>
+      createFormField(id, level, tabId, fieldData),
     onSuccess: () => {
-      queryClient.invalidateQueries(["formStructure", id]);
+      queryClient.invalidateQueries(["form", id]);
       toast.success("Field added successfully");
     },
     onError: (error) => {
@@ -67,9 +61,9 @@ export default function CreateForm() {
   });
 
   const deleteTabMutation = useMutation({
-    mutationFn: deleteFormTab,
+    mutationFn: ({ level, tabId }) => deleteFormTab(id, level, tabId),
     onSuccess: () => {
-      queryClient.invalidateQueries(["formStructure", id]);
+      queryClient.invalidateQueries(["form", id]);
       toast.success("Tab deleted successfully");
     },
     onError: (error) => {
@@ -79,9 +73,10 @@ export default function CreateForm() {
   });
 
   const deleteFieldMutation = useMutation({
-    mutationFn: deleteFormField,
+    mutationFn: ({ level, tabId, fieldId }) =>
+      deleteFormField(id, level, tabId, fieldId),
     onSuccess: () => {
-      queryClient.invalidateQueries(["formStructure", id]);
+      queryClient.invalidateQueries(["form", id]);
       toast.success("Field deleted successfully");
     },
     onError: (error) => {
@@ -96,59 +91,38 @@ export default function CreateForm() {
     setIsTabModalOpen(true);
   };
 
-  const handleAddField = (tabId) => {
+  const handleAddField = (level, tabId) => {
+    setCurrentLevel(level);
     setCurrentTabId(tabId);
     setIsFieldModalOpen(true);
   };
 
   const handleTabSubmit = (tabName) => {
-    const tabs = formStructure?.tabs || [];
-    const maxOrder =
-      tabs.filter((t) => t.level === currentLevel).length > 0
-        ? Math.max(
-            ...tabs
-              .filter((t) => t.level === currentLevel)
-              .map((t) => t.order_index),
-          )
-        : -1;
-
     createTabMutation.mutate({
-      form_id: id,
-      parent_tab_id: currentParentTabId,
       level: currentLevel,
-      name: tabName,
-      order_index: maxOrder + 1,
+      tabData: { name: tabName },
     });
   };
 
   const handleFieldSubmit = (fieldData) => {
-    const fields = formStructure?.fields || [];
-    const maxOrder =
-      fields.filter((f) => f.tab_id === currentTabId).length > 0
-        ? Math.max(
-            ...fields
-              .filter((f) => f.tab_id === currentTabId)
-              .map((f) => f.order_index),
-          )
-        : -1;
-
     createFieldMutation.mutate({
-      form_id: id,
-      tab_id: currentTabId,
-      ...fieldData,
-      order_index: maxOrder + 1,
+      level: currentLevel,
+      tabId: currentTabId,
+      fieldData,
     });
   };
 
-  const handleDeleteTab = (tabId) => {
-    if (confirm("Are you sure you want to delete this tab and all its contents?")) {
-      deleteTabMutation.mutate(tabId);
+  const handleDeleteTab = (level, tabId) => {
+    if (
+      confirm("Are you sure you want to delete this tab and all its contents?")
+    ) {
+      deleteTabMutation.mutate({ level, tabId });
     }
   };
 
-  const handleDeleteField = (fieldId) => {
+  const handleDeleteField = (level, tabId, fieldId) => {
     if (confirm("Are you sure you want to delete this field?")) {
-      deleteFieldMutation.mutate(fieldId);
+      deleteFieldMutation.mutate({ level, tabId, fieldId });
     }
   };
 
@@ -182,9 +156,9 @@ export default function CreateForm() {
 
           {error && <p className="text-red-500">Error: {error.message}</p>}
 
-          {formStructure && (
+          {formData && (
             <TreeView
-              formStructure={formStructure}
+              formData={formData}
               onAddTab={handleAddTab}
               onDeleteTab={handleDeleteTab}
               onAddField={handleAddField}

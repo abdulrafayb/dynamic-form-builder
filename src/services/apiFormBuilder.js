@@ -1,24 +1,44 @@
 import supabase from "./supabase";
 
-export async function getFormTabs(formId) {
+export async function getFormStructure(formId) {
   const { data, error } = await supabase
-    .from("form_tabs")
+    .from("forms")
     .select("*")
-    .eq("form_id", formId)
-    .order("order_index");
+    .eq("id", formId)
+    .maybeSingle();
 
   if (error) {
     console.error(error);
-    throw new Error("Form tabs could not be loaded");
+    throw new Error("Form could not be loaded");
   }
 
   return data;
 }
 
-export async function createFormTab(tabData) {
+export async function createFormTab(formId, level, tabData) {
+  const { data: form, error: fetchError } = await supabase
+    .from("forms")
+    .select("*")
+    .eq("id", formId)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error(fetchError);
+    throw new Error("Form could not be loaded");
+  }
+
+  const currentArray = form[level] || [];
+  const newTab = {
+    id: crypto.randomUUID(),
+    ...tabData,
+    fields: [],
+  };
+  const updatedArray = [...currentArray, newTab];
+
   const { data, error } = await supabase
-    .from("form_tabs")
-    .insert([tabData])
+    .from("forms")
+    .update({ [level]: updatedArray })
+    .eq("id", formId)
     .select();
 
   if (error) {
@@ -29,8 +49,25 @@ export async function createFormTab(tabData) {
   return data[0];
 }
 
-export async function deleteFormTab(tabId) {
-  const { error } = await supabase.from("form_tabs").delete().eq("id", tabId);
+export async function deleteFormTab(formId, level, tabId) {
+  const { data: form, error: fetchError } = await supabase
+    .from("forms")
+    .select("*")
+    .eq("id", formId)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error(fetchError);
+    throw new Error("Form could not be loaded");
+  }
+
+  const currentArray = form[level] || [];
+  const updatedArray = currentArray.filter((tab) => tab.id !== tabId);
+
+  const { error } = await supabase
+    .from("forms")
+    .update({ [level]: updatedArray })
+    .eq("id", formId);
 
   if (error) {
     console.error(error);
@@ -40,25 +77,39 @@ export async function deleteFormTab(tabId) {
   return null;
 }
 
-export async function getFormFields(formId) {
-  const { data, error } = await supabase
-    .from("form_fields")
+export async function createFormField(formId, level, tabId, fieldData) {
+  const { data: form, error: fetchError } = await supabase
+    .from("forms")
     .select("*")
-    .eq("form_id", formId)
-    .order("order_index");
+    .eq("id", formId)
+    .maybeSingle();
 
-  if (error) {
-    console.error(error);
-    throw new Error("Form fields could not be loaded");
+  if (fetchError) {
+    console.error(fetchError);
+    throw new Error("Form could not be loaded");
   }
 
-  return data;
-}
+  const currentArray = form[level] || [];
+  const updatedArray = currentArray.map((tab) => {
+    if (tab.id === tabId) {
+      return {
+        ...tab,
+        fields: [
+          ...(tab.fields || []),
+          {
+            id: crypto.randomUUID(),
+            ...fieldData,
+          },
+        ],
+      };
+    }
+    return tab;
+  });
 
-export async function createFormField(fieldData) {
   const { data, error } = await supabase
-    .from("form_fields")
-    .insert([fieldData])
+    .from("forms")
+    .update({ [level]: updatedArray })
+    .eq("id", formId)
     .select();
 
   if (error) {
@@ -69,11 +120,33 @@ export async function createFormField(fieldData) {
   return data[0];
 }
 
-export async function deleteFormField(fieldId) {
+export async function deleteFormField(formId, level, tabId, fieldId) {
+  const { data: form, error: fetchError } = await supabase
+    .from("forms")
+    .select("*")
+    .eq("id", formId)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error(fetchError);
+    throw new Error("Form could not be loaded");
+  }
+
+  const currentArray = form[level] || [];
+  const updatedArray = currentArray.map((tab) => {
+    if (tab.id === tabId) {
+      return {
+        ...tab,
+        fields: (tab.fields || []).filter((field) => field.id !== fieldId),
+      };
+    }
+    return tab;
+  });
+
   const { error } = await supabase
-    .from("form_fields")
-    .delete()
-    .eq("id", fieldId);
+    .from("forms")
+    .update({ [level]: updatedArray })
+    .eq("id", formId);
 
   if (error) {
     console.error(error);
@@ -81,41 +154,4 @@ export async function deleteFormField(fieldId) {
   }
 
   return null;
-}
-
-export async function getFormStructure(formId) {
-  const [form, tabs, fields] = await Promise.all([
-    supabase.from("forms").select("*").eq("id", formId).maybeSingle(),
-    supabase
-      .from("form_tabs")
-      .select("*")
-      .eq("form_id", formId)
-      .order("order_index"),
-    supabase
-      .from("form_fields")
-      .select("*")
-      .eq("form_id", formId)
-      .order("order_index"),
-  ]);
-
-  if (form.error) {
-    console.error(form.error);
-    throw new Error("Form could not be loaded");
-  }
-
-  if (tabs.error) {
-    console.error(tabs.error);
-    throw new Error("Tabs could not be loaded");
-  }
-
-  if (fields.error) {
-    console.error(fields.error);
-    throw new Error("Fields could not be loaded");
-  }
-
-  return {
-    form: form.data,
-    tabs: tabs.data,
-    fields: fields.data,
-  };
 }

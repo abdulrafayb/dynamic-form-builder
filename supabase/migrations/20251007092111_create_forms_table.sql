@@ -2,17 +2,17 @@
   # Create Forms Table
 
   ## Overview
-  Creates the base forms table that stores form templates.
+  Creates the base forms table that stores form templates with tabs and fields.
 
   ## Tables Created
-  
+
   ### 1. `forms`
   Main table for storing form templates
   - `id` (uuid, primary key)
   - `templateName` (text) - Name of the form template
-  - `header` (jsonb) - Header configuration (deprecated - will use form_tabs)
-  - `lines` (jsonb) - Lines configuration (deprecated - will use form_tabs)
-  - `lineDetails` (jsonb) - Line details configuration (deprecated - will use form_tabs)
+  - `header` (jsonb) - Array of tabs with fields for header section
+  - `lines` (jsonb) - Array of tabs with fields for lines section
+  - `lineDetails` (jsonb) - Array of tabs with fields for line details section
   - `created_at` (timestamptz)
 
   ## Security
@@ -20,8 +20,9 @@
   - Policies for authenticated users to manage forms
 
   ## Notes
-  - The jsonb columns are kept for backward compatibility
-  - New structure will use form_tabs and form_fields tables
+  - Each JSONB array contains tab objects with nested field arrays
+  - Tab structure: { id, name, fields: [...] }
+  - Field structure: { id, field_name, field_type, is_required, ... }
 */
 
 CREATE TABLE IF NOT EXISTS forms (
