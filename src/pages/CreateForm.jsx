@@ -12,6 +12,7 @@ import { useState } from "react";
 import TreeView from "../components/TreeView";
 import TabModal from "../ui/TabModal";
 import FieldModal from "../ui/FieldModal";
+import FormPreview from "../components/FormPreview";
 import toast from "react-hot-toast";
 
 export default function CreateForm() {
@@ -171,9 +172,7 @@ export default function CreateForm() {
           <h2 className="mb-4 text-xl font-semibold text-gray-700">
             Form Preview
           </h2>
-          <p className="text-gray-600">
-            Preview of your form will appear here.
-          </p>
+          {formData && <FormPreview formData={formData} />}
         </div>
       </div>
 
