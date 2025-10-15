@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import toast from "react-hot-toast";
+import { saveTableData } from "../services/apiTables";
 
 function FormPreview({ formData }) {
   if (!formData) {
@@ -76,6 +78,20 @@ function FormPreview({ formData }) {
         (!formData.lineDetails || formData.lineDetails.length === 0) && (
           <p className="text-gray-600">No fields defined yet.</p>
         )}
+
+      <button
+        onClick={async () => {
+          try {
+            await saveTableData(formData);
+            toast.success("Form data saved successfully!");
+          } catch (error) {
+            toast.error("Error saving form data: " + error.message);
+          }
+        }}
+        className="mt-6 rounded-md bg-indigo-600 px-4 py-2 text-white shadow-sm hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
+      >
+        Save
+      </button>
     </div>
   );
 }

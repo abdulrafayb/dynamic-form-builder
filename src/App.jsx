@@ -4,6 +4,8 @@ import { Toaster } from "react-hot-toast";
 
 import Form from "./pages/Form";
 import CreateForm from "./pages/CreateForm";
+import Tables from "./pages/Tables";
+import TableDetail from "./pages/TableDetail";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,6 +23,8 @@ export default function Main() {
           <Routes>
             <Route index element={<Form />} />
             <Route path="form/:id" element={<CreateForm />} />
+            <Route path="tables" element={<Tables />} />
+            <Route path="tables/:id" element={<TableDetail />} />
           </Routes>
         </BrowserRouter>
         <Toaster

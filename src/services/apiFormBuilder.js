@@ -12,6 +12,31 @@ export async function getFormStructure(formId) {
     throw new Error("Form could not be loaded");
   }
 
+  // Attempt to parse JSON fields, handling potential `"[object Object]"` strings
+  const parseJsonField = (field) => {
+    try {
+      // Check if the field is a string and not the problematic "[object Object]"
+      if (typeof field === "string" && field !== "[object Object]") {
+        return JSON.parse(field);
+      } else if (typeof field === "object" && field !== null) {
+        // If it's already an object, return it directly
+        return field;
+      }
+    } catch (e) {
+      console.warn(`Failed to parse JSON for field: ${field}`, e);
+    }
+    return []; // Default to empty array if parsing fails or field is malformed
+  };
+
+  if (data) {
+    return {
+      ...data,
+      header: parseJsonField(data.header),
+      lines: parseJsonField(data.lines),
+      lineDetails: parseJsonField(data.lineDetails),
+    };
+  }
+
   return data;
 }
 
