@@ -124,6 +124,13 @@ export async function createFormField(formId, level, tabId, fieldData) {
           {
             id: crypto.randomUUID(),
             ...fieldData,
+            ...(fieldData.field_type === "table"
+              ? {
+                  columnNames: fieldData.columnNames,
+                  rowCount: fieldData.rowCount,
+                  tableData: fieldData.tableData || [],
+                }
+              : {}),
           },
         ],
       };

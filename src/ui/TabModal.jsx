@@ -21,9 +21,7 @@ export default function TabModal({ isOpen, onClose, onSubmit, level }) {
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose}>
-      <h2 className="mb-6 text-2xl font-semibold text-gray-800">
-        Add New Tab
-      </h2>
+      <h2 className="mb-6 text-2xl font-semibold text-gray-800">Add New Tab</h2>
       <form onSubmit={handleSubmit}>
         <div className="mb-6">
           <label
@@ -38,7 +36,7 @@ export default function TabModal({ isOpen, onClose, onSubmit, level }) {
             value={tabName}
             onChange={(e) => setTabName(e.target.value)}
             placeholder={`Enter tab name for ${level}`}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none"
             autoFocus
           />
         </div>

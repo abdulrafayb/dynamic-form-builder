@@ -32,6 +32,39 @@ function EditableFormRenderer({ data, onDataChange }) {
     }
   };
 
+  const handleTableCellChange = (
+    tabId,
+    fieldId,
+    rowIndex,
+    columnName,
+    value,
+  ) => {
+    const newData = data.map((tab) => {
+      if (tab.id === tabId) {
+        return {
+          ...tab,
+          fields: tab.fields.map((field) => {
+            if (field.id === fieldId && field.field_type === "table") {
+              const updatedTableData = [
+                ...(field.tableData || Array(field.rowCount).fill({})),
+              ];
+              updatedTableData[rowIndex] = {
+                ...(updatedTableData[rowIndex] || {}),
+                [columnName]: value,
+              };
+              return { ...field, tableData: updatedTableData };
+            }
+            return field;
+          }),
+        };
+      }
+      return tab;
+    });
+    if (JSON.stringify(newData) !== JSON.stringify(data)) {
+      onDataChange(newData);
+    }
+  };
+
   if (!data || data.length === 0) {
     return <p className="text-gray-600">No fields defined.</p>;
   }
@@ -80,6 +113,53 @@ function EditableFormRenderer({ data, onDataChange }) {
               </option>
             ))}
           </select>
+        );
+      case "table":
+        return (
+          <div key={field.id} className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  {field.columnNames.map((colName) => (
+                    <th
+                      key={colName}
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+                    >
+                      {colName}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {[...Array(field.rowCount)].map((_, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {field.columnNames.map((colName) => (
+                      <td
+                        key={colName}
+                        className="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900"
+                      >
+                        <input
+                          type="text"
+                          value={field.tableData?.[rowIndex]?.[colName] || ""}
+                          onChange={(e) =>
+                            handleTableCellChange(
+                              tabId,
+                              field.id,
+                              rowIndex,
+                              colName,
+                              e.target.value,
+                            )
+                          }
+                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         );
       // Add more field types as needed
       default:

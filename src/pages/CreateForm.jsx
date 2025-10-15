@@ -15,6 +15,24 @@ import FieldModal from "../ui/FieldModal";
 import FormPreview from "../components/FormPreview";
 import toast from "react-hot-toast";
 
+const ALL_FIELD_TYPES = [
+  { value: "text", label: "Text Input" },
+  { value: "number", label: "Number Input" },
+  { value: "email", label: "Email Input" },
+  { value: "password", label: "Password Input" },
+  { value: "tel", label: "Phone Input" },
+  { value: "url", label: "URL Input" },
+  { value: "date", label: "Date Picker" },
+  { value: "time", label: "Time Picker" },
+  { value: "datetime-local", label: "DateTime Picker" },
+  { value: "textarea", label: "Text Area" },
+  { value: "select", label: "Dropdown Select" },
+  { value: "checkbox", label: "Checkbox" },
+  { value: "radio", label: "Radio Button" },
+  { value: "file", label: "File Upload" },
+  { value: "table", label: "Table" },
+];
+
 export default function CreateForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -25,6 +43,8 @@ export default function CreateForm() {
   const [currentLevel, setCurrentLevel] = useState(null);
   const [currentParentTabId, setCurrentParentTabId] = useState(null);
   const [currentTabId, setCurrentTabId] = useState(null);
+  const [availableFieldTypes, setAvailableFieldTypes] =
+    useState(ALL_FIELD_TYPES);
 
   const {
     isLoading,
@@ -95,6 +115,13 @@ export default function CreateForm() {
   const handleAddField = (level, tabId) => {
     setCurrentLevel(level);
     setCurrentTabId(tabId);
+    if (level === "lines") {
+      setAvailableFieldTypes(
+        ALL_FIELD_TYPES.filter((type) => type.value === "table"),
+      );
+    } else {
+      setAvailableFieldTypes(ALL_FIELD_TYPES);
+    }
     setIsFieldModalOpen(true);
   };
 
@@ -179,7 +206,7 @@ export default function CreateForm() {
       <TabModal
         isOpen={isTabModalOpen}
         onClose={() => setIsTabModalOpen(false)}
-        onSubmit={handleTabSubmit}
+        onSubmit={(tabName) => handleTabSubmit(tabName)}
         level={currentLevel}
       />
 
@@ -187,6 +214,7 @@ export default function CreateForm() {
         isOpen={isFieldModalOpen}
         onClose={() => setIsFieldModalOpen(false)}
         onSubmit={handleFieldSubmit}
+        availableFieldTypes={availableFieldTypes}
       />
     </div>
   );
