@@ -116,20 +116,26 @@ function EditableFormRenderer({ data, onDataChange }) {
         {data.map((tab) =>
           activeTab === tab.id ? (
             <div key={tab.id} className="space-y-4">
-              {tab.fields.map((field) => (
-                <div key={field.id} className="space-y-1">
-                  <label
-                    htmlFor={field.id}
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    {field.field_name}
-                    {field.is_required && (
-                      <span className="text-red-500"> *</span>
-                    )}
-                  </label>
-                  {renderEditableField(field, tab.id)}
+              {tab.fields.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {tab.fields.map((field) => (
+                    <div key={field.id} className="space-y-1">
+                      <label
+                        htmlFor={field.id}
+                        className="block text-sm font-medium text-gray-700"
+                      >
+                        {field.field_name}
+                        {field.is_required && (
+                          <span className="text-red-500"> *</span>
+                        )}
+                      </label>
+                      {renderEditableField(field, tab.id)}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <p className="text-gray-600">No fields defined for this tab.</p>
+              )}
             </div>
           ) : null,
         )}
