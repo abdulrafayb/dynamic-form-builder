@@ -22,6 +22,30 @@ export default function TreeView({
   };
 
   const renderField = (level, tabId, field) => {
+    if (field.field_type === "table_column") {
+      return (
+        <div
+          key={field.id}
+          className="group ml-8 flex items-center justify-between rounded border-l border-gray-200 px-2 py-1 hover:bg-gray-50"
+        >
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">
+              [Column: {field.type}]
+            </span>
+            <span className="text-sm font-medium text-gray-700">
+              {field.name}
+            </span>
+          </div>
+          <button
+            onClick={() => onDeleteField(level, tabId, field.id)}
+            className="rounded p-1 text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50"
+            title="Delete column"
+          >
+            <FiMinus className="text-sm" />
+          </button>
+        </div>
+      );
+    }
     return (
       <div
         key={field.id}
@@ -36,7 +60,7 @@ export default function TreeView({
         </div>
         <button
           onClick={() => onDeleteField(level, tabId, field.id)}
-          className="rounded p-1 text-red-500 opacity-0 transition-opacity hover:bg-red-50 group-hover:opacity-100"
+          className="rounded p-1 text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50"
           title="Delete field"
         >
           <FiMinus className="text-sm" />
@@ -102,7 +126,7 @@ export default function TreeView({
 
     return (
       <div key={level} className="mb-4">
-        <div className="group flex items-center justify-between rounded bg-gray-100 px-3 py-2 hover:bg-gray-150">
+        <div className="group hover:bg-gray-150 flex items-center justify-between rounded bg-gray-100 px-3 py-2">
           <div className="flex items-center space-x-2">
             <button
               onClick={() => toggleNode(level)}
@@ -120,7 +144,7 @@ export default function TreeView({
           </div>
           <button
             onClick={() => onAddTab(level)}
-            className="rounded p-1 text-blue-600 opacity-0 transition-opacity hover:bg-blue-100 group-hover:opacity-100"
+            className="rounded p-1 text-blue-600 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-blue-100"
             title={`Add tab to ${label}`}
           >
             <FiPlus />
@@ -134,7 +158,7 @@ export default function TreeView({
         )}
 
         {isExpanded && tabs.length === 0 && (
-          <div className="ml-4 mt-2 text-sm text-gray-500">
+          <div className="mt-2 ml-4 text-sm text-gray-500">
             No tabs yet. Click + to add one.
           </div>
         )}

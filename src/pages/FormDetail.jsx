@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import Button from "../ui/Button";
 import EditableFormRenderer from "../components/EditableFormRenderer";
 
-function TableDetail() {
+function FormDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [tableEntry, setTableEntry] = useState(null);
@@ -17,6 +17,7 @@ function TableDetail() {
       if (!id) return;
       try {
         const data = await getTableDataById(id);
+        console.log("FormDetail - fetchEntry - data from API:", data);
         setTableEntry(data);
         setEditedFields({
           header: data.header,
@@ -39,12 +40,24 @@ function TableDetail() {
 
   const handleSave = async () => {
     try {
-      // The data in editedFields is already in the correct object format due to EditableFormRenderer's onDataChange
-      await updateTableDataItem(id, editedFields);
-      setTableEntry(editedFields); // Update local state with saved data
+      const fieldsToUpdate = {
+        header: JSON.stringify(editedFields.header),
+        lines: JSON.stringify(editedFields.lines),
+        lineDetails: JSON.stringify(editedFields.lineDetails),
+      };
+      await updateTableDataItem(id, fieldsToUpdate);
+      // Re-fetch data to ensure local state is consistent with the database
+      const updatedData = await getTableDataById(id);
+      setTableEntry(updatedData);
+      setEditedFields({
+        header: updatedData.header,
+        lines: updatedData.lines,
+        lineDetails: updatedData.lineDetails,
+      });
       toast.success("Entry updated successfully!");
       // setIsEditing(false);
     } catch (error) {
+      console.error("FormDetail - handleSave - error:", error);
       toast.error("Error updating entry: " + error.message);
     }
   };
@@ -105,4 +118,4 @@ function TableDetail() {
   );
 }
 
-export default TableDetail;
+export default FormDetail;

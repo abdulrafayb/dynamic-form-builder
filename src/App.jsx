@@ -2,10 +2,12 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 
-import Form from "./pages/Form";
-import CreateForm from "./pages/CreateForm";
-import Tables from "./pages/Tables";
-import TableDetail from "./pages/TableDetail";
+import TemplateList from "./pages/TemplateList";
+import CreateTemplate from "./pages/CreateTemplate";
+import FormList from "./pages/FormList";
+import FormDetail from "./pages/FormDetail";
+import HomePage from "./pages/HomePage";
+import TableView from "./pages/TableView";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,10 +23,12 @@ export default function Main() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <Routes>
-            <Route index element={<Form />} />
-            <Route path="form/:id" element={<CreateForm />} />
-            <Route path="tables" element={<Tables />} />
-            <Route path="tables/:id" element={<TableDetail />} />
+            <Route index element={<HomePage />} />
+            <Route path="template-list" element={<TemplateList />} />
+            <Route path="create-template/:id" element={<CreateTemplate />} />
+            <Route path="form-list" element={<FormList />} />
+            <Route path="form-detail/:id" element={<FormDetail />} />
+            <Route path="table-view" element={<TableView />} />
           </Routes>
         </BrowserRouter>
         <Toaster

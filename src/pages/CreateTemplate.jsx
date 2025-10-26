@@ -7,11 +7,13 @@ import {
   createFormField,
   deleteFormTab,
   deleteFormField,
+  updateTabFields,
 } from "../services/apiFormBuilder";
 import { useState } from "react";
 import TreeView from "../components/TreeView";
 import TabModal from "../ui/TabModal";
 import FieldModal from "../ui/FieldModal";
+import TableColumnModal from "../ui/TableColumnModal";
 import FormPreview from "../components/FormPreview";
 import toast from "react-hot-toast";
 
@@ -33,13 +35,14 @@ const ALL_FIELD_TYPES = [
   { value: "table", label: "Table" },
 ];
 
-export default function CreateForm() {
+export default function CreateTemplate() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const [isTabModalOpen, setIsTabModalOpen] = useState(false);
   const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
+  const [isTableColumnModalOpen, setIsTableColumnModalOpen] = useState(false);
   const [currentLevel, setCurrentLevel] = useState(null);
   const [currentParentTabId, setCurrentParentTabId] = useState(null);
   const [currentTabId, setCurrentTabId] = useState(null);
@@ -77,6 +80,19 @@ export default function CreateForm() {
     },
     onError: (error) => {
       toast.error("Failed to add field");
+      console.error(error);
+    },
+  });
+
+  const updateTabFieldsMutation = useMutation({
+    mutationFn: ({ level, tabId, newFields }) =>
+      updateTabFields(id, level, tabId, newFields),
+    onSuccess: () => {
+      queryClient.invalidateQueries(["form", id]);
+      toast.success("Tab fields updated successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to update tab fields");
       console.error(error);
     },
   });
@@ -119,10 +135,11 @@ export default function CreateForm() {
       setAvailableFieldTypes(
         ALL_FIELD_TYPES.filter((type) => type.value === "table"),
       );
+      setIsTableColumnModalOpen(true);
     } else {
       setAvailableFieldTypes(ALL_FIELD_TYPES);
+      setIsFieldModalOpen(true);
     }
-    setIsFieldModalOpen(true);
   };
 
   const handleTabSubmit = (tabName) => {
@@ -138,6 +155,62 @@ export default function CreateForm() {
       tabId: currentTabId,
       fieldData,
     });
+  };
+
+  const handleColumnSubmit = async (columnsData) => {
+    try {
+      const currentTabs = formData[currentLevel];
+      const targetTab = currentTabs.find((tab) => tab.id === currentTabId);
+
+      if (!targetTab) {
+        toast.error("Target tab not found.");
+        return;
+      }
+
+      let updatedFields = [...(targetTab.fields || [])];
+      let tableFieldIndex = updatedFields.findIndex(
+        (field) => field.field_type === "table",
+      );
+
+      if (tableFieldIndex === -1) {
+        // If no table field exists, create one
+        const newTableField = {
+          id: crypto.randomUUID(),
+          field_name: "New Table", // Default name for the table
+          field_type: "table",
+          columns: columnsData.map((col) => ({
+            ...col,
+            id: crypto.randomUUID(),
+          })), // Add unique ID to each column
+          rowCount: 5, // Default row count
+          tableData: [],
+        };
+        updatedFields.push(newTableField);
+      } else {
+        // If table field exists, update its columns
+        const existingTableField = updatedFields[tableFieldIndex];
+        const newColumns = columnsData.map((col) => ({
+          ...col,
+          id: crypto.randomUUID(),
+        }));
+        existingTableField.columns = [
+          ...(existingTableField.columns || []),
+          ...newColumns,
+        ];
+        updatedFields[tableFieldIndex] = existingTableField;
+      }
+
+      await updateTabFieldsMutation.mutateAsync({
+        level: currentLevel,
+        tabId: currentTabId,
+        newFields: updatedFields,
+      });
+
+      toast.success("Columns added successfully");
+    } catch (error) {
+      toast.error("Failed to add one or more columns");
+      console.error(error);
+    }
   };
 
   const handleDeleteTab = (level, tabId) => {
@@ -215,6 +288,12 @@ export default function CreateForm() {
         onClose={() => setIsFieldModalOpen(false)}
         onSubmit={handleFieldSubmit}
         availableFieldTypes={availableFieldTypes}
+      />
+
+      <TableColumnModal
+        isOpen={isTableColumnModalOpen}
+        onClose={() => setIsTableColumnModalOpen(false)}
+        onSubmit={handleColumnSubmit}
       />
     </div>
   );

@@ -27,9 +27,8 @@ function EditableFormRenderer({ data, onDataChange }) {
       return tab;
     });
     // Only call onDataChange if the data has actually changed to prevent infinite loops
-    if (JSON.stringify(newData) !== JSON.stringify(data)) {
-      onDataChange(newData);
-    }
+    console.log("EditableFormRenderer - handleFieldChange - newData:", newData);
+    onDataChange(newData);
   };
 
   const handleTableCellChange = (
@@ -60,9 +59,51 @@ function EditableFormRenderer({ data, onDataChange }) {
       }
       return tab;
     });
-    if (JSON.stringify(newData) !== JSON.stringify(data)) {
-      onDataChange(newData);
-    }
+    console.log(
+      "EditableFormRenderer - handleTableCellChange - newData:",
+      newData,
+    );
+    onDataChange(newData);
+  };
+
+  const handleInsertRow = (tabId, fieldId, columns) => {
+    const newRow = columns.reduce(
+      (acc, col) => ({ ...acc, [col.name]: "" }),
+      {},
+    );
+
+    const newData = data.map((tab) => {
+      if (tab.id === tabId) {
+        return {
+          ...tab,
+          fields: tab.fields.map((field) => {
+            if (field.id === fieldId && field.field_type === "table") {
+              console.log(
+                "handleInsertRow - field.tableData BEFORE:",
+                field.tableData,
+              );
+              const updatedTableData = [...(field.tableData || []), newRow];
+              console.log("handleInsertRow - newRow:", newRow);
+              console.log(
+                "handleInsertRow - updatedTableData AFTER:",
+                updatedTableData,
+              );
+              return {
+                ...field,
+                tableData: updatedTableData,
+              };
+            }
+            return field;
+          }),
+        };
+      }
+      return tab;
+    });
+    console.log(
+      "EditableFormRenderer - handleInsertRow - newData before onDataChange:",
+      newData,
+    );
+    onDataChange(newData);
   };
 
   if (!data || data.length === 0) {
@@ -114,53 +155,108 @@ function EditableFormRenderer({ data, onDataChange }) {
             ))}
           </select>
         );
-      case "table":
+      case "table": {
+        const tableColumns = field.columns || [];
+        const tableDataToRender = field.tableData || [];
+
         return (
-          <div key={field.id} className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  {field.columnNames.map((colName) => (
-                    <th
-                      key={colName}
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-                    >
-                      {colName}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {[...Array(field.rowCount)].map((_, rowIndex) => (
-                  <tr key={rowIndex}>
-                    {field.columnNames.map((colName) => (
-                      <td
-                        key={colName}
-                        className="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900"
+          <div key={field.id} className="">
+            <div className="overflow-x-auto border-2 border-gray-200">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-100">
+                  <tr>
+                    {tableColumns.map((col) => (
+                      <th
+                        key={col.id}
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase"
                       >
-                        <input
-                          type="text"
-                          value={field.tableData?.[rowIndex]?.[colName] || ""}
-                          onChange={(e) =>
-                            handleTableCellChange(
-                              tabId,
-                              field.id,
-                              rowIndex,
-                              colName,
-                              e.target.value,
-                            )
-                          }
-                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        />
-                      </td>
+                        {col.name}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {tableDataToRender.map((_, rowIndex) => (
+                    <tr key={rowIndex} className="hover:bg-gray-50">
+                      {tableColumns.map((col) => (
+                        <td
+                          key={col.id}
+                          className="px-6 py-4 text-sm whitespace-nowrap text-gray-900"
+                        >
+                          {(() => {
+                            const cellValue =
+                              tableDataToRender[rowIndex]?.[col.name] || "";
+                            switch (col.type) {
+                              case "text":
+                              case "number":
+                              case "date":
+                                return (
+                                  <input
+                                    type={
+                                      col.type === "number"
+                                        ? "number"
+                                        : col.type === "date"
+                                          ? "date"
+                                          : "text"
+                                    }
+                                    value={cellValue}
+                                    onChange={(e) =>
+                                      handleTableCellChange(
+                                        tabId,
+                                        field.id,
+                                        rowIndex,
+                                        col.name,
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                  />
+                                );
+                              case "boolean":
+                                return (
+                                  <input
+                                    type="checkbox"
+                                    checked={!!cellValue}
+                                    onChange={(e) =>
+                                      handleTableCellChange(
+                                        tabId,
+                                        field.id,
+                                        rowIndex,
+                                        col.name,
+                                        e.target.checked,
+                                      )
+                                    }
+                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                  />
+                                );
+                              default:
+                                return (
+                                  <p className="text-red-500">
+                                    Unsupported column type: {col.type}
+                                  </p>
+                                );
+                            }
+                          })()}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => handleInsertRow(tabId, field.id, tableColumns)}
+                className="mt-4 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
+              >
+                Insert Row
+              </button>
+            </div>
           </div>
         );
+      }
       // Add more field types as needed
       default:
         return (
@@ -172,7 +268,7 @@ function EditableFormRenderer({ data, onDataChange }) {
   };
 
   return (
-    <div>
+    <div className="grid">
       {data.length > 1 && (
         <div className="mb-4 border-b border-gray-200">
           <nav className="-mb-px flex space-x-6" aria-label="Tabs">
@@ -192,34 +288,32 @@ function EditableFormRenderer({ data, onDataChange }) {
           </nav>
         </div>
       )}
-      <div className="mt-4 space-y-4">
-        {data.map((tab) =>
-          activeTab === tab.id ? (
-            <div key={tab.id} className="space-y-4">
-              {tab.fields.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {tab.fields.map((field) => (
-                    <div key={field.id} className="space-y-1">
-                      <label
-                        htmlFor={field.id}
-                        className="block text-sm font-medium text-gray-700"
-                      >
-                        {field.field_name}
-                        {field.is_required && (
-                          <span className="text-red-500"> *</span>
-                        )}
-                      </label>
-                      {renderEditableField(field, tab.id)}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-600">No fields defined for this tab.</p>
-              )}
-            </div>
-          ) : null,
-        )}
-      </div>
+      {data.map((tab) =>
+        activeTab === tab.id ? (
+          <div key={tab.id} className="space-y-4">
+            {tab.fields.length > 0 ? (
+              <div className="space-y-4">
+                {tab.fields.map((field) => (
+                  <div key={field.id} className="space-y-1">
+                    <label
+                      htmlFor={field.id}
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      {field.field_name}
+                      {field.is_required && (
+                        <span className="text-red-500"> *</span>
+                      )}
+                    </label>
+                    {renderEditableField(field, tab.id)}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-600">No fields defined for this tab.</p>
+            )}
+          </div>
+        ) : null,
+      )}
     </div>
   );
 }

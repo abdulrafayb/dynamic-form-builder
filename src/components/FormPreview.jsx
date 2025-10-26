@@ -7,27 +7,45 @@ function FormPreview({ formData }) {
     return <p className="text-gray-600">No form data to display.</p>;
   }
 
-  const renderField = (field) => (
-    <div key={field.id} className="mb-2 rounded-md border border-gray-300 p-3">
-      <p className="font-medium text-gray-800">
-        {field.field_name} ({field.field_type})
-      </p>
-      {field.field_placeholder && (
-        <p className="text-sm text-gray-500">
-          Placeholder: {field.field_placeholder}
-        </p>
-      )}
-      {field.is_required && (
-        <span className="text-sm text-red-500"> (Required)</span>
-      )}
-      {field.field_options && field.field_options.length > 0 && (
-        <div className="mt-1 text-sm text-gray-700">
-          Options:{" "}
-          {field.field_options.map((option) => option.value).join(", ")}
+  const renderField = (field) => {
+    if (field.field_type === "table_column") {
+      return (
+        <div
+          key={field.id}
+          className="mb-2 rounded-md border border-gray-400 bg-gray-100 p-3 text-sm"
+        >
+          <p className="font-medium text-gray-800">
+            Table Column: {field.name} ({field.type})
+          </p>
         </div>
-      )}
-    </div>
-  );
+      );
+    }
+
+    return (
+      <div
+        key={field.id}
+        className="mb-2 rounded-md border border-gray-300 p-3"
+      >
+        <p className="font-medium text-gray-800">
+          {field.field_name} ({field.field_type})
+        </p>
+        {field.field_placeholder && (
+          <p className="text-sm text-gray-500">
+            Placeholder: {field.field_placeholder}
+          </p>
+        )}
+        {field.is_required && (
+          <span className="text-sm text-red-500"> (Required)</span>
+        )}
+        {field.field_options && field.field_options.length > 0 && (
+          <div className="mt-1 text-sm text-gray-700">
+            Options:{" "}
+            {field.field_options.map((option) => option.value).join(", ")}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const SectionWithTabs = ({ title, data }) => {
     const [activeSubTab, setActiveSubTab] = useState(data[0]?.id || null);

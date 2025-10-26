@@ -3,7 +3,7 @@ import { getTablesData } from "../services/apiTables";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
-function Tables() {
+function FormList() {
   const [tableData, setTableData] = useState([]);
   const navigate = useNavigate();
 
@@ -30,7 +30,7 @@ function Tables() {
             <div
               key={item.id}
               className="cursor-pointer rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-              onClick={() => navigate(`/tables/${item.id}`)}
+              onClick={() => navigate(`/form-detail/${item.id}`)}
             >
               <h2 className="text-lg font-semibold text-gray-800">
                 Table ID: {item.id}
@@ -47,4 +47,4 @@ function Tables() {
   );
 }
 
-export default Tables;
+export default FormList;

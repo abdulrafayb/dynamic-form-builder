@@ -10,7 +10,7 @@ import { createForm, deleteForm, getForms } from "../services/apiForm";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 
-export default function Form() {
+export default function TemplateList() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -100,7 +100,7 @@ export default function Form() {
   };
 
   const handleCardClick = (id) => {
-    navigate(`/form/${id}`);
+    navigate(`/create-template/${id}`);
   };
 
   if (isLoading) return null;
@@ -131,9 +131,8 @@ export default function Form() {
             >
               <FaTrashAlt />
             </button>
-            <h3 className="mb-2 text-xl font-semibold">Form Details</h3>
-            <p>
-              Template Name:{" "}
+            <h3 className="mb-2 font-semibold">Name:</h3>
+            <p className="text-xl">
               <span className="font-medium">{data.templateName}</span>
             </p>
           </div>
