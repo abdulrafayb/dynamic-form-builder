@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
+import { HiArrowLeft } from "react-icons/hi";
 
 import { createForm, deleteForm, getForms } from "../services/apiForm";
 import { useNavigate } from "react-router-dom";
@@ -107,7 +108,10 @@ export default function TemplateList() {
 
   return (
     <section className="min-h-screen bg-gray-50 p-6">
-      <div className="mb-8 text-right">
+      <div className="mb-8 flex justify-between">
+        <Button onClick={() => navigate(-1)}>
+          <HiArrowLeft />
+        </Button>
         <Button onClick={handleAddFormClick}>
           <FiPlus />
         </Button>

@@ -1,7 +1,85 @@
 import React, { useState, useEffect } from "react";
+import { AsyncPaginate } from "react-select-async-paginate";
 
 function EditableFormRenderer({ data, onDataChange }) {
   const [activeTab, setActiveTab] = useState(data[0]?.id || null);
+
+  async function loadOptions(search, loadedOptions, { page, endpoint }) {
+    console.log(`Fetching from endpoint: ${endpoint} with page: ${page}`);
+    try {
+      const url = new URL(endpoint);
+      url.searchParams.append("page", page);
+      if (search) {
+        url.searchParams.append("search", search);
+      }
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result = await response.json();
+      console.log("API Response:", result);
+
+      let items = [];
+      let hasMore = false;
+
+      if (Array.isArray(result)) {
+        items = result;
+        hasMore = false; // Assuming no pagination for simple arrays
+      } else if (result && Array.isArray(result.results)) {
+        // Existing logic for object with `results` array
+        items = result.results;
+        hasMore = !!result.next;
+      } else if (result && typeof result === "object") {
+        // Handle object of objects (take values)
+        items = Object.values(result);
+        hasMore = false; // Assuming no pagination for object of objects
+      } else {
+        console.warn("API Response format not recognized:", result);
+        return {
+          options: [],
+          hasMore: false,
+          additional: {
+            page,
+            endpoint,
+          },
+        };
+      }
+
+      const options = items.map((item) => ({
+        value:
+          item.id ||
+          item.value ||
+          item.name ||
+          item.label ||
+          JSON.stringify(item),
+        label:
+          item.title ||
+          item.name ||
+          item.label ||
+          item.id ||
+          JSON.stringify(item),
+      }));
+
+      return {
+        options,
+        hasMore,
+        additional: {
+          page: page + 1,
+          endpoint,
+        },
+      };
+    } catch (error) {
+      console.error("Error loading options from API:", error);
+      return {
+        options: [],
+        hasMore: false,
+        additional: {
+          page,
+          endpoint,
+        },
+      };
+    }
+  }
 
   // Effect to manage activeTab when data changes
   useEffect(() => {
@@ -155,13 +233,36 @@ function EditableFormRenderer({ data, onDataChange }) {
             ))}
           </select>
         );
+      case "api-dropdown":
+        return (
+          <AsyncPaginate
+            key={field.id}
+            value={
+              field.field_value
+                ? { value: field.field_value, label: field.field_value }
+                : null
+            }
+            loadOptions={loadOptions}
+            onChange={(selectedOption) =>
+              handleFieldChange(
+                tabId,
+                field.id,
+                selectedOption ? selectedOption.value : "",
+              )
+            }
+            additional={{ page: 1, endpoint: field.endpoint }}
+            isClearable
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            placeholder={field.field_placeholder || "Select an option..."}
+          />
+        );
       case "table": {
         const tableColumns = field.columns || [];
         const tableDataToRender = field.tableData || [];
 
         return (
           <div key={field.id} className="">
-            <div className="overflow-x-auto border-2 border-gray-200">
+            <div className="overflow-x-auto overflow-y-visible border-2 border-gray-200">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-100">
                   <tr>
@@ -228,6 +329,36 @@ function EditableFormRenderer({ data, onDataChange }) {
                                       )
                                     }
                                     className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                  />
+                                );
+                              case "api-dropdown":
+                                return (
+                                  <AsyncPaginate
+                                    key={`${field.id}-${col.id}-${rowIndex}`}
+                                    value={
+                                      cellValue
+                                        ? { value: cellValue, label: cellValue }
+                                        : null
+                                    }
+                                    loadOptions={loadOptions}
+                                    onChange={(selectedOption) =>
+                                      handleTableCellChange(
+                                        tabId,
+                                        field.id,
+                                        rowIndex,
+                                        col.name,
+                                        selectedOption
+                                          ? selectedOption.value
+                                          : "",
+                                      )
+                                    }
+                                    additional={{
+                                      page: 1,
+                                      endpoint: col.endpoint,
+                                    }}
+                                    isClearable
+                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    placeholder="Select an option..."
                                   />
                                 );
                               default:

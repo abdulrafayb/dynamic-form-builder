@@ -7,14 +7,17 @@ const ALL_COLUMN_TYPES = [
   { value: "number", label: "Number" },
   { value: "date", label: "Date" },
   { value: "boolean", label: "Checkbox" },
+  { value: "api-dropdown", label: "API Dropdown" },
 ];
 
 export default function TableColumnModal({ isOpen, onClose, onSubmit }) {
-  const [columns, setColumns] = useState([{ name: "", type: "text" }]);
+  const [columns, setColumns] = useState([
+    { name: "", type: "text", endpoint: "" },
+  ]);
   const [errors, setErrors] = useState({});
 
   const handleAddColumn = () => {
-    setColumns([...columns, { name: "", type: "text" }]);
+    setColumns([...columns, { name: "", type: "text", endpoint: "" }]);
     setErrors({}); // Clear errors when a new column is added
   };
 
@@ -44,6 +47,10 @@ export default function TableColumnModal({ isOpen, onClose, onSubmit }) {
     columns.forEach((column, index) => {
       if (!column.name.trim()) {
         newErrors[`name-${index}`] = "Column name is required.";
+      }
+      if (column.type === "api-dropdown" && !column.endpoint.trim()) {
+        newErrors[`endpoint-${index}`] =
+          "API Endpoint is required for API Dropdown type.";
       }
     });
 
@@ -133,6 +140,31 @@ export default function TableColumnModal({ isOpen, onClose, onSubmit }) {
                     ))}
                   </select>
                 </div>
+                {column.type === "api-dropdown" && (
+                  <div>
+                    <label
+                      htmlFor={`apiEndpoint-${index}`}
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      API Endpoint
+                    </label>
+                    <input
+                      type="text"
+                      id={`apiEndpoint-${index}`}
+                      value={column.endpoint}
+                      onChange={(e) =>
+                        handleColumnChange(index, "endpoint", e.target.value)
+                      }
+                      className={`mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-sm ${errors[`endpoint-${index}`] ? "border-red-500" : ""}`}
+                      required
+                    />
+                    {errors[`endpoint-${index}`] && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors[`endpoint-${index}`]}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
