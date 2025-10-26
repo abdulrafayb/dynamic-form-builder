@@ -87,6 +87,7 @@ function FormDetail() {
         <EditableFormRenderer
           data={editedFields.header || []}
           onDataChange={(newData) => handleSectionDataChange("header", newData)}
+          isHeader={true}
         />
 
         <h2 className="text-xl font-semibold text-gray-700">Lines Data</h2>

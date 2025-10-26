@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { AsyncPaginate } from "react-select-async-paginate";
 
-function EditableFormRenderer({ data, onDataChange }) {
+function EditableFormRenderer({ data, onDataChange, isHeader }) {
   const [activeTab, setActiveTab] = useState(data[0]?.id || null);
 
   async function loadOptions(search, loadedOptions, { page, endpoint }) {
@@ -202,7 +202,7 @@ function EditableFormRenderer({ data, onDataChange }) {
             placeholder={field.field_placeholder || ""}
             onChange={(e) => handleFieldChange(tabId, field.id, e.target.value)}
             required={field.is_required}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           />
         );
       case "textarea":
@@ -214,7 +214,7 @@ function EditableFormRenderer({ data, onDataChange }) {
             onChange={(e) => handleFieldChange(tabId, field.id, e.target.value)}
             required={field.is_required}
             rows="3"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           ></textarea>
         );
       case "select":
@@ -224,7 +224,7 @@ function EditableFormRenderer({ data, onDataChange }) {
             value={value}
             onChange={(e) => handleFieldChange(tabId, field.id, e.target.value)}
             required={field.is_required}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           >
             {field.field_options.map((option) => (
               <option key={option.value} value={option.value}>
@@ -252,7 +252,7 @@ function EditableFormRenderer({ data, onDataChange }) {
             }
             additional={{ page: 1, endpoint: field.endpoint }}
             isClearable
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             placeholder={field.field_placeholder || "Select an option..."}
           />
         );
@@ -261,8 +261,8 @@ function EditableFormRenderer({ data, onDataChange }) {
         const tableDataToRender = field.tableData || [];
 
         return (
-          <div key={field.id} className="">
-            <div className="overflow-x-auto overflow-y-visible border-2 border-gray-200">
+          <div key={field.id}>
+            <div className="overflow-x-scroll border-2 border-gray-200">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-100">
                   <tr>
@@ -270,7 +270,7 @@ function EditableFormRenderer({ data, onDataChange }) {
                       <th
                         key={col.id}
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-700 uppercase"
+                        className="min-w-2xs px-4 py-3 text-left text-xs font-medium tracking-wider whitespace-nowrap text-gray-700 uppercase"
                       >
                         {col.name}
                       </th>
@@ -283,7 +283,7 @@ function EditableFormRenderer({ data, onDataChange }) {
                       {tableColumns.map((col) => (
                         <td
                           key={col.id}
-                          className="px-6 py-4 text-sm whitespace-nowrap text-gray-900"
+                          className="px-4 py-3 text-sm whitespace-nowrap text-gray-900"
                         >
                           {(() => {
                             const cellValue =
@@ -311,7 +311,7 @@ function EditableFormRenderer({ data, onDataChange }) {
                                         e.target.value,
                                       )
                                     }
-                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    className="w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                   />
                                 );
                               case "boolean":
@@ -357,8 +357,9 @@ function EditableFormRenderer({ data, onDataChange }) {
                                       endpoint: col.endpoint,
                                     }}
                                     isClearable
-                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    className="w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                     placeholder="Select an option..."
+                                    menuPortalTarget={document.body}
                                   />
                                 );
                               default:
@@ -399,7 +400,7 @@ function EditableFormRenderer({ data, onDataChange }) {
   };
 
   return (
-    <div className="grid">
+    <div className="">
       {data.length > 1 && (
         <div className="mb-4 border-b border-gray-200">
           <nav className="-mb-px flex space-x-6" aria-label="Tabs">
@@ -419,11 +420,14 @@ function EditableFormRenderer({ data, onDataChange }) {
           </nav>
         </div>
       )}
+
       {data.map((tab) =>
         activeTab === tab.id ? (
           <div key={tab.id} className="space-y-4">
             {tab.fields.length > 0 ? (
-              <div className="space-y-4">
+              <div
+                className={`space-y-4 ${isHeader ? "grid grid-cols-3 gap-4" : ""}`}
+              >
                 {tab.fields.map((field) => (
                   <div key={field.id} className="space-y-1">
                     <label
