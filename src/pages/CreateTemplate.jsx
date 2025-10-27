@@ -49,6 +49,46 @@ export default function CreateTemplate() {
   const [availableFieldTypes, setAvailableFieldTypes] =
     useState(ALL_FIELD_TYPES);
 
+  const isFieldNameUnique = (newFieldName, currentTabIdToCheck) => {
+    if (!formData) return true; // No form data yet, so assume unique
+
+    const lowerCaseNewFieldName = newFieldName.toLowerCase();
+
+    // Check header fields
+    if (formData.header && Array.isArray(formData.header)) {
+      for (const tab of formData.header) {
+        if (tab.id !== currentTabIdToCheck && tab.fields) {
+          if (
+            tab.fields.some(
+              (field) =>
+                field.field_name.toLowerCase() === lowerCaseNewFieldName,
+            )
+          ) {
+            return false;
+          }
+        }
+      }
+    }
+
+    // Check lines fields (if applicable, e.g., for table columns within lines tabs)
+    if (formData.lines && Array.isArray(formData.lines)) {
+      for (const tab of formData.lines) {
+        if (tab.id !== currentTabIdToCheck && tab.fields) {
+          if (
+            tab.fields.some(
+              (field) =>
+                field.field_name.toLowerCase() === lowerCaseNewFieldName,
+            )
+          ) {
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  };
+
   const {
     isLoading,
     data: formData,
@@ -150,6 +190,13 @@ export default function CreateTemplate() {
   };
 
   const handleFieldSubmit = (fieldData) => {
+    if (!isFieldNameUnique(fieldData.field_name, currentTabId)) {
+      toast.error(
+        `Field name "${fieldData.field_name}" already exists. Please use a unique name.`,
+      );
+      return;
+    }
+
     createFieldMutation.mutate({
       level: currentLevel,
       tabId: currentTabId,
@@ -165,6 +212,16 @@ export default function CreateTemplate() {
       if (!targetTab) {
         toast.error("Target tab not found.");
         return;
+      }
+
+      // Validate uniqueness for new columns
+      for (const col of columnsData) {
+        if (!isFieldNameUnique(col.name, currentTabId)) {
+          toast.error(
+            `Column name "${col.name}" already exists. Please use a unique name.`,
+          );
+          return;
+        }
       }
 
       let updatedFields = [...(targetTab.fields || [])];
