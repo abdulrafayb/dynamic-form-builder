@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "./Modal";
 import Button from "./Button";
 
@@ -7,6 +7,7 @@ export default function FieldModal({
   onClose,
   onSubmit,
   availableFieldTypes,
+  fieldToEdit, // New prop to receive field data for editing
 }) {
   const [fieldName, setFieldName] = useState("");
   const [fieldType, setFieldType] = useState(
@@ -17,6 +18,27 @@ export default function FieldModal({
   const [options, setOptions] = useState("");
   const [columnNames, setColumnNames] = useState(""); // New state for column names
   const [rowCount, setRowCount] = useState(1); // New state for row count
+
+  // Effect to populate form when fieldToEdit changes (for editing)
+  useEffect(() => {
+    if (fieldToEdit) {
+      setFieldName(fieldToEdit.field_name || "");
+      setFieldType(
+        fieldToEdit.field_type || availableFieldTypes[0]?.value || "text",
+      );
+      setPlaceholder(fieldToEdit.field_placeholder || "");
+      setIsRequired(fieldToEdit.is_required || false);
+      setOptions(
+        fieldToEdit.field_options ? fieldToEdit.field_options.join("\n") : "",
+      );
+      setColumnNames(
+        fieldToEdit.columnNames ? fieldToEdit.columnNames.join(",") : "",
+      );
+      setRowCount(fieldToEdit.rowCount || 1);
+    } else {
+      resetForm();
+    }
+  }, [fieldToEdit, availableFieldTypes]);
 
   const needsOptions = ["select", "radio", "checkbox"].includes(fieldType);
   const isTableField = fieldType === "table"; // New variable to check if field type is table
@@ -69,7 +91,7 @@ export default function FieldModal({
   return (
     <Modal isOpen={isOpen} onClose={handleClose}>
       <h2 className="mb-6 text-2xl font-semibold text-gray-800">
-        Add Form Field
+        {fieldToEdit ? "Edit Form Field" : "Add Form Field"}
       </h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         {!isTableField && (
@@ -104,6 +126,7 @@ export default function FieldModal({
             value={fieldType}
             onChange={(e) => setFieldType(e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none"
+            disabled={!!fieldToEdit} // Disable field type editing when editing a field
           >
             {availableFieldTypes.map((type) => (
               <option key={type.value} value={type.value}>
@@ -208,7 +231,7 @@ export default function FieldModal({
 
         <div className="flex justify-end space-x-3 pt-2">
           <Button type="submit" disabled={!fieldName.trim() && !isTableField}>
-            Add Field
+            {fieldToEdit ? "Update Field" : "Add Field"}
           </Button>
         </div>
       </form>

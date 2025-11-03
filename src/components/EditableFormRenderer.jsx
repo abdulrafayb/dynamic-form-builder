@@ -4,8 +4,74 @@ import { AsyncPaginate } from "react-select-async-paginate";
 function EditableFormRenderer({ data, onDataChange, isHeader }) {
   const [activeTab, setActiveTab] = useState(data[0]?.id || null);
 
+  // Basic formula evaluator (CAUTION: For production, use a safe expression evaluator library)
+  const evaluateFormula = (formula, rowData) => {
+    let processedFormula = formula;
+    const declarations = [];
+
+    // Helper to convert string to a camelCase-like format for regex matching in the formula
+    const toFormulaVariable = (str) => {
+      // Convert to camelCase: remove non-alphanumeric, then apply camelCase
+      const cleanedStr = str.replace(/[^a-zA-Z0-9_\s]/g, ""); // Remove special chars, keep spaces and underscores
+      return cleanedStr
+        .replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) => {
+          return index === 0 ? word.toLowerCase() : word.toUpperCase();
+        })
+        .replace(/\s+/g, ""); // Remove spaces
+    };
+
+    console.log("Initial formula:", formula); // New log
+    console.log("Row data for evaluation:", rowData); // New log
+
+    for (const key in rowData) {
+      console.log("Processing key (column name):", key); // New log
+
+      // 1. Sanitize key for variable declaration (e.g., "Item Quantity" -> "ItemQuantity")
+      const sanitizedKeyForDeclaration = key.replace(/[^a-zA-Z0-9_]/g, "");
+      const value = Number(rowData[key]) || 0;
+      declarations.push(`const ${sanitizedKeyForDeclaration} = ${value};`);
+
+      console.log("Sanitized key for declaration:", sanitizedKeyForDeclaration); // New log
+      console.log("Value for key:", value); // New log
+
+      // 2. Generate the variable name as it would appear in the formula (e.g., "Item Quantity" -> "itemQuantity")
+      const formulaVariableInUse = toFormulaVariable(key);
+
+      console.log("Formula variable to match:", formulaVariableInUse); // New log
+
+      // 3. Replace the formula variable in the processedFormula with the sanitized declaration name
+      // Escape special characters in the formulaVariableInUse for regex, then add word boundaries.
+      const escapedFormulaVar = formulaVariableInUse.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&",
+      );
+      const regexForFormulaVar = new RegExp(`\\b${escapedFormulaVar}\\b`, "gi"); // 'gi' for global and case-insensitive
+
+      console.log("Regex pattern for replacement:", regexForFormulaVar); // New log
+      console.log("Formula BEFORE replacement:", processedFormula); // New log
+
+      processedFormula = processedFormula.replace(
+        regexForFormulaVar,
+        sanitizedKeyForDeclaration,
+      );
+
+      console.log("Formula AFTER replacement:", processedFormula); // New log
+    }
+
+    const fullFormula = `${declarations.join("\n")} return ${processedFormula};`;
+
+    console.log("Full formula for execution:", fullFormula); // New log
+
+    try {
+      // eslint-disable-next-line no-new-func
+      return new Function(fullFormula)();
+    } catch (error) {
+      console.error("Error evaluating formula:", formula, error);
+      return "Error";
+    }
+  };
+
   async function loadOptions(search, loadedOptions, { page, endpoint }) {
-    console.log(`Fetching from endpoint: ${endpoint} with page: ${page}`);
     try {
       const url = new URL(endpoint);
       url.searchParams.append("page", page);
@@ -17,7 +83,6 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const result = await response.json();
-      console.log("API Response:", result);
 
       let items = [];
       let hasMore = false;
@@ -34,7 +99,6 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
         items = Object.values(result);
         hasMore = false; // Assuming no pagination for object of objects
       } else {
-        console.warn("API Response format not recognized:", result);
         return {
           options: [],
           hasMore: false,
@@ -80,7 +144,6 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
       };
     }
   }
-
   // Effect to manage activeTab when data changes
   useEffect(() => {
     // If data changes and the current active tab is no longer in the new data, or if no tab is active
@@ -105,7 +168,6 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
       return tab;
     });
     // Only call onDataChange if the data has actually changed to prevent infinite loops
-    console.log("EditableFormRenderer - handleFieldChange - newData:", newData);
     onDataChange(newData);
   };
 
@@ -129,6 +191,18 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
                 ...(updatedTableData[rowIndex] || {}),
                 [columnName]: value,
               };
+
+              // Re-evaluate calculated columns in the current row
+              field.columns.forEach((col) => {
+                if (col.isCalculated) {
+                  const calculatedValue = evaluateFormula(
+                    col.calculationFormula,
+                    updatedTableData[rowIndex],
+                  );
+                  updatedTableData[rowIndex][col.name] = calculatedValue;
+                }
+              });
+
               return { ...field, tableData: updatedTableData };
             }
             return field;
@@ -137,10 +211,6 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
       }
       return tab;
     });
-    console.log(
-      "EditableFormRenderer - handleTableCellChange - newData:",
-      newData,
-    );
     onDataChange(newData);
   };
 
@@ -156,16 +226,7 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
           ...tab,
           fields: tab.fields.map((field) => {
             if (field.id === fieldId && field.field_type === "table") {
-              console.log(
-                "handleInsertRow - field.tableData BEFORE:",
-                field.tableData,
-              );
               const updatedTableData = [...(field.tableData || []), newRow];
-              console.log("handleInsertRow - newRow:", newRow);
-              console.log(
-                "handleInsertRow - updatedTableData AFTER:",
-                updatedTableData,
-              );
               return {
                 ...field,
                 tableData: updatedTableData,
@@ -177,10 +238,6 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
       }
       return tab;
     });
-    console.log(
-      "EditableFormRenderer - handleInsertRow - newData before onDataChange:",
-      newData,
-    );
     onDataChange(newData);
   };
 
@@ -194,6 +251,7 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
       case "text":
       case "email":
       case "number":
+      case "date":
         return (
           <input
             key={field.id}
@@ -254,6 +312,7 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
             isClearable
             className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             placeholder={field.field_placeholder || "Select an option..."}
+            menuPortalTarget={document.body}
           />
         );
       case "table": {
@@ -280,98 +339,108 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {tableDataToRender.map((_, rowIndex) => (
                     <tr key={rowIndex} className="hover:bg-gray-50">
-                      {tableColumns.map((col) => (
-                        <td
-                          key={col.id}
-                          className="px-4 py-3 text-sm whitespace-nowrap text-gray-900"
-                        >
-                          {(() => {
-                            const cellValue =
-                              tableDataToRender[rowIndex]?.[col.name] || "";
-                            switch (col.type) {
-                              case "text":
-                              case "number":
-                              case "date":
-                                return (
-                                  <input
-                                    type={
-                                      col.type === "number"
-                                        ? "number"
-                                        : col.type === "date"
-                                          ? "date"
-                                          : "text"
-                                    }
-                                    value={cellValue}
-                                    onChange={(e) =>
-                                      handleTableCellChange(
-                                        tabId,
-                                        field.id,
-                                        rowIndex,
-                                        col.name,
-                                        e.target.value,
-                                      )
-                                    }
-                                    className="w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                  />
-                                );
-                              case "boolean":
-                                return (
-                                  <input
-                                    type="checkbox"
-                                    checked={!!cellValue}
-                                    onChange={(e) =>
-                                      handleTableCellChange(
-                                        tabId,
-                                        field.id,
-                                        rowIndex,
-                                        col.name,
-                                        e.target.checked,
-                                      )
-                                    }
-                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                  />
-                                );
-                              case "api-dropdown":
-                                return (
-                                  <AsyncPaginate
-                                    key={`${field.id}-${col.id}-${rowIndex}`}
-                                    value={
-                                      cellValue
-                                        ? { value: cellValue, label: cellValue }
-                                        : null
-                                    }
-                                    loadOptions={loadOptions}
-                                    onChange={(selectedOption) =>
-                                      handleTableCellChange(
-                                        tabId,
-                                        field.id,
-                                        rowIndex,
-                                        col.name,
-                                        selectedOption
-                                          ? selectedOption.value
-                                          : "",
-                                      )
-                                    }
-                                    additional={{
-                                      page: 1,
-                                      endpoint: col.endpoint,
-                                    }}
-                                    isClearable
-                                    className="w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                                    placeholder="Select an option..."
-                                    menuPortalTarget={document.body}
-                                  />
-                                );
-                              default:
-                                return (
-                                  <p className="text-red-500">
-                                    Unsupported column type: {col.type}
-                                  </p>
-                                );
-                            }
-                          })()}
-                        </td>
-                      ))}
+                      {tableColumns.map((col) => {
+                        const cellValue =
+                          tableDataToRender[rowIndex]?.[col.name] || "";
+                        const isCalculated = col.isCalculated; // Access isCalculated from column object
+
+                        return (
+                          <td
+                            key={col.id}
+                            className="px-4 py-3 text-sm whitespace-nowrap text-gray-900"
+                          >
+                            {(() => {
+                              switch (col.type) {
+                                case "text":
+                                case "number":
+                                case "date":
+                                  return (
+                                    <input
+                                      type={
+                                        col.type === "number"
+                                          ? "number"
+                                          : col.type === "date"
+                                            ? "date"
+                                            : "text"
+                                      }
+                                      value={cellValue}
+                                      onChange={(e) =>
+                                        handleTableCellChange(
+                                          tabId,
+                                          field.id,
+                                          rowIndex,
+                                          col.name,
+                                          e.target.value,
+                                        )
+                                      }
+                                      disabled={isCalculated} // Disable if calculated
+                                      className={`w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${isCalculated ? "bg-gray-100" : ""}`}
+                                    />
+                                  );
+                                case "boolean":
+                                  return (
+                                    <input
+                                      type="checkbox"
+                                      checked={!!cellValue}
+                                      onChange={(e) =>
+                                        handleTableCellChange(
+                                          tabId,
+                                          field.id,
+                                          rowIndex,
+                                          col.name,
+                                          e.target.checked,
+                                        )
+                                      }
+                                      disabled={isCalculated} // Disable if calculated
+                                      className={`h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 ${isCalculated ? "bg-gray-100" : ""}`}
+                                    />
+                                  );
+                                case "api-dropdown":
+                                  return (
+                                    <AsyncPaginate
+                                      key={`${field.id}-${col.id}-${rowIndex}`}
+                                      value={
+                                        cellValue
+                                          ? {
+                                              value: cellValue,
+                                              label: cellValue,
+                                            }
+                                          : null
+                                      }
+                                      loadOptions={loadOptions}
+                                      onChange={(selectedOption) =>
+                                        handleTableCellChange(
+                                          tabId,
+                                          field.id,
+                                          rowIndex,
+                                          col.name,
+                                          selectedOption
+                                            ? selectedOption.value
+                                            : "",
+                                        )
+                                      }
+                                      additional={{
+                                        page: 1,
+                                        endpoint: col.endpoint,
+                                      }}
+                                      isClearable
+                                      className={`w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${isCalculated ? "bg-gray-100" : ""}`}
+                                      placeholder="Select an option..."
+                                      menuPortalTarget={document.body}
+                                      isDisabled={isCalculated} // Disable if calculated
+                                    />
+                                  );
+                                default:
+                                  return (
+                                    <p className="text-red-500">
+                                      Unsupported column type: {col.type}
+                                    </p>
+                                  );
+                              }
+                            })()}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>

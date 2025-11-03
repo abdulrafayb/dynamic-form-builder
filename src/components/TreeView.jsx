@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FiPlus, FiMinus, FiChevronRight } from "react-icons/fi";
+import { FiPlus, FiMinus, FiChevronRight, FiEdit } from "react-icons/fi";
 
 export default function TreeView({
   formData,
@@ -7,6 +7,8 @@ export default function TreeView({
   onDeleteTab,
   onAddField,
   onDeleteField,
+  onEditField, // Add onEditField to props
+  onEditColumn, // Add onEditColumn to props
 }) {
   const [expandedNodes, setExpandedNodes] = useState({
     header: true,
@@ -21,31 +23,87 @@ export default function TreeView({
     }));
   };
 
-  const renderField = (level, tabId, field) => {
-    if (field.field_type === "table_column") {
-      return (
-        <div
-          key={field.id}
-          className="group ml-8 flex items-center justify-between rounded border-l border-gray-200 px-2 py-1 hover:bg-gray-50"
-        >
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">
-              [Column: {field.type}]
-            </span>
-            <span className="text-sm font-medium text-gray-700">
-              {field.name}
-            </span>
-          </div>
+  const renderTableColumn = (level, tabId, tableFieldId, column) => {
+    return (
+      <div
+        key={column.id}
+        className="group ml-12 flex items-center justify-between rounded border-l border-gray-200 px-2 py-1 hover:bg-gray-50"
+      >
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-600">[Column: {column.type}]</span>
+          <span className="text-sm font-medium text-gray-700">
+            {column.name}
+          </span>
+        </div>
+        <div className="flex items-center space-x-1 opacity-0 transition-opacity group-hover:opacity-100">
           <button
-            onClick={() => onDeleteField(level, tabId, field.id)}
-            className="rounded p-1 text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50"
+            onClick={() => {
+              onEditColumn(level, tabId, column.id, column);
+            }}
+            className="rounded p-1 text-blue-500 hover:bg-blue-50"
+            title="Edit column"
+          >
+            <FiEdit className="text-sm" />
+          </button>
+          <button
+            onClick={() =>
+              onDeleteField(
+                level,
+                tabId,
+                tableFieldId,
+                column.id,
+                "tableColumn",
+              )
+            }
+            className="rounded p-1 text-red-500 hover:bg-red-50"
             title="Delete column"
           >
             <FiMinus className="text-sm" />
           </button>
         </div>
+      </div>
+    );
+  };
+
+  const renderField = (level, tabId, field) => {
+    if (field.field_type === "table") {
+      return (
+        <div key={field.id} className="ml-8">
+          <div className="group flex items-center justify-between rounded px-2 py-1 hover:bg-yellow-50">
+            <span className="text-sm font-semibold text-yellow-700">
+              [Table: {field.field_name || "Unnamed Table"}]
+            </span>
+            <div className="flex items-center space-x-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <button
+                onClick={() => onAddField(level, tabId, field.id)} // Pass table field ID for adding columns
+                className="rounded p-1 text-green-500 hover:bg-green-100"
+                title="Add column"
+              >
+                <FiPlus className="text-sm" />
+              </button>
+              {/* No direct edit for the table field itself, only its columns */}
+              <button
+                onClick={() =>
+                  onDeleteField(level, tabId, field.id, null, "table")
+                }
+                className="rounded p-1 text-red-500 hover:bg-red-50"
+                title="Delete table"
+              >
+                <FiMinus className="text-sm" />
+              </button>
+            </div>
+          </div>
+          {field.columns && field.columns.length > 0 && (
+            <div className="ml-4 border-l border-gray-200 pl-2">
+              {field.columns.map((column) =>
+                renderTableColumn(level, tabId, field.id, column),
+              )}
+            </div>
+          )}
+        </div>
       );
     }
+
     return (
       <div
         key={field.id}
@@ -58,13 +116,24 @@ export default function TreeView({
           </span>
           {field.is_required && <span className="text-xs text-red-500">*</span>}
         </div>
-        <button
-          onClick={() => onDeleteField(level, tabId, field.id)}
-          className="rounded p-1 text-red-500 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50"
-          title="Delete field"
-        >
-          <FiMinus className="text-sm" />
-        </button>
+        <div className="flex items-center space-x-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            onClick={() => {
+              onEditField(level, tabId, field.id, field);
+            }}
+            className="rounded p-1 text-blue-500 hover:bg-blue-50"
+            title="Edit field"
+          >
+            <FiEdit className="text-sm" />
+          </button>
+          <button
+            onClick={() => onDeleteField(level, tabId, field.id, null, "field")}
+            className="rounded p-1 text-red-500 hover:bg-red-50"
+            title="Delete field"
+          >
+            <FiMinus className="text-sm" />
+          </button>
+        </div>
       </div>
     );
   };

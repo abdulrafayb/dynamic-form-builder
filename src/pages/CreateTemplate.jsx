@@ -48,8 +48,14 @@ export default function CreateTemplate() {
   const [currentTabId, setCurrentTabId] = useState(null);
   const [availableFieldTypes, setAvailableFieldTypes] =
     useState(ALL_FIELD_TYPES);
+  const [fieldToEdit, setFieldToEdit] = useState(null); // New state to hold field being edited
+  const [columnToEdit, setColumnToEdit] = useState(null); // New state to hold column being edited
 
-  const isFieldNameUnique = (newFieldName, currentTabIdToCheck) => {
+  const isFieldNameUnique = (
+    newFieldName,
+    currentTabIdToCheck,
+    fieldIdToExclude = null,
+  ) => {
     if (!formData) return true; // No form data yet, so assume unique
 
     const lowerCaseNewFieldName = newFieldName.toLowerCase();
@@ -57,10 +63,11 @@ export default function CreateTemplate() {
     // Check header fields
     if (formData.header && Array.isArray(formData.header)) {
       for (const tab of formData.header) {
-        if (tab.id !== currentTabIdToCheck && tab.fields) {
+        if (tab.fields) {
           if (
             tab.fields.some(
               (field) =>
+                field.id !== fieldIdToExclude && // Exclude the field being edited
                 field.field_name.toLowerCase() === lowerCaseNewFieldName,
             )
           ) {
@@ -73,10 +80,25 @@ export default function CreateTemplate() {
     // Check lines fields (if applicable, e.g., for table columns within lines tabs)
     if (formData.lines && Array.isArray(formData.lines)) {
       for (const tab of formData.lines) {
-        if (tab.id !== currentTabIdToCheck && tab.fields) {
+        if (tab.fields) {
+          // Check for table columns within this tab
+          const tableField = tab.fields.find((f) => f.field_type === "table");
+          if (tableField && tableField.columns) {
+            if (
+              tableField.columns.some(
+                (col) =>
+                  col.id !== fieldIdToExclude && // Exclude the column being edited
+                  col.name.toLowerCase() === lowerCaseNewFieldName,
+              )
+            ) {
+              return false;
+            }
+          }
+
           if (
             tab.fields.some(
               (field) =>
+                field.id !== fieldIdToExclude && // Exclude the field being edited
                 field.field_name.toLowerCase() === lowerCaseNewFieldName,
             )
           ) {
@@ -87,6 +109,23 @@ export default function CreateTemplate() {
     }
 
     return true;
+  };
+
+  const getAllColumnNames = () => {
+    const columnNames = [];
+    if (formData && formData.lines) {
+      for (const tab of formData.lines) {
+        if (tab.fields) {
+          const tableField = tab.fields.find((f) => f.field_type === "table");
+          if (tableField && tableField.columns) {
+            for (const col of tableField.columns) {
+              columnNames.push(col.name);
+            }
+          }
+        }
+      }
+    }
+    return columnNames;
   };
 
   const {
@@ -137,6 +176,19 @@ export default function CreateTemplate() {
     },
   });
 
+  const updateFormFieldMutation = useMutation({
+    mutationFn: ({ level, tabId, fieldId, newFieldData }) =>
+      updateTabFields(id, level, tabId, newFieldData),
+    onSuccess: () => {
+      queryClient.invalidateQueries(["form", id]);
+      toast.success("Field updated successfully");
+    },
+    onError: (error) => {
+      toast.error("Failed to update field");
+      console.error(error);
+    },
+  });
+
   const deleteTabMutation = useMutation({
     mutationFn: ({ level, tabId }) => deleteFormTab(id, level, tabId),
     onSuccess: () => {
@@ -171,6 +223,8 @@ export default function CreateTemplate() {
   const handleAddField = (level, tabId) => {
     setCurrentLevel(level);
     setCurrentTabId(tabId);
+    setFieldToEdit(null); // Ensure we're adding a new field, not editing
+    setColumnToEdit(null); // Ensure we're adding a new field, not editing a column
     if (level === "lines") {
       setAvailableFieldTypes(
         ALL_FIELD_TYPES.filter((type) => type.value === "table"),
@@ -182,6 +236,29 @@ export default function CreateTemplate() {
     }
   };
 
+  const handleEditField = (level, tabId, fieldId, fieldData) => {
+    setCurrentLevel(level);
+    setCurrentTabId(tabId);
+    setFieldToEdit(fieldData); // Set the field to be edited
+    setColumnToEdit(null); // Ensure we're editing a field, not a column
+    setAvailableFieldTypes(
+      ALL_FIELD_TYPES.filter((type) => type.value === fieldData.field_type),
+    );
+    setIsFieldModalOpen(true);
+  };
+
+  const handleEditColumn = (level, tabId, columnId, columnData) => {
+    setCurrentLevel(level);
+    setCurrentTabId(tabId);
+    setColumnToEdit({
+      ...columnData,
+      isCalculated: columnData.isCalculated || false,
+      calculationFormula: columnData.calculationFormula || "",
+    }); // Create a new object and ensure all properties are present
+    setFieldToEdit(null); // Ensure we're editing a column, not a field
+    setIsTableColumnModalOpen(true);
+  };
+
   const handleTabSubmit = (tabName) => {
     createTabMutation.mutate({
       level: currentLevel,
@@ -190,18 +267,36 @@ export default function CreateTemplate() {
   };
 
   const handleFieldSubmit = (fieldData) => {
-    if (!isFieldNameUnique(fieldData.field_name, currentTabId)) {
+    if (
+      !isFieldNameUnique(fieldData.field_name, currentTabId, fieldToEdit?.id)
+    ) {
       toast.error(
         `Field name "${fieldData.field_name}" already exists. Please use a unique name.`,
       );
       return;
     }
 
-    createFieldMutation.mutate({
-      level: currentLevel,
-      tabId: currentTabId,
-      fieldData,
-    });
+    if (fieldToEdit) {
+      // Handle update
+      const currentTabs = formData[currentLevel];
+      const targetTab = currentTabs.find((tab) => tab.id === currentTabId);
+      const updatedFields = targetTab.fields.map((field) =>
+        field.id === fieldToEdit.id ? { ...field, ...fieldData } : field,
+      );
+      updateFormFieldMutation.mutate({
+        level: currentLevel,
+        tabId: currentTabId,
+        fieldId: fieldToEdit.id,
+        newFieldData: updatedFields,
+      });
+    } else {
+      // Handle create
+      createFieldMutation.mutate({
+        level: currentLevel,
+        tabId: currentTabId,
+        fieldData,
+      });
+    }
   };
 
   const handleColumnSubmit = async (columnsData) => {
@@ -214,59 +309,74 @@ export default function CreateTemplate() {
         return;
       }
 
-      // Validate uniqueness for new columns
-      for (const col of columnsData) {
-        if (!isFieldNameUnique(col.name, currentTabId)) {
-          toast.error(
-            `Column name "${col.name}" already exists. Please use a unique name.`,
-          );
-          return;
-        }
-      }
-
-      let updatedFields = [...(targetTab.fields || [])];
-      let tableFieldIndex = updatedFields.findIndex(
+      // Find the table field
+      const tableFieldIndex = targetTab.fields.findIndex(
         (field) => field.field_type === "table",
       );
 
       if (tableFieldIndex === -1) {
-        // If no table field exists, create one
-        const newTableField = {
-          id: crypto.randomUUID(),
-          field_name: "New Table", // Default name for the table
-          field_type: "table",
-          columns: columnsData.map((col) => ({
-            ...col,
-            id: crypto.randomUUID(),
-          })), // Add unique ID to each column
-          rowCount: 5, // Default row count
-          tableData: [],
-        };
-        updatedFields.push(newTableField);
+        toast.error("Table field not found in the current tab.");
+        return;
+      }
+
+      const existingTableField = targetTab.fields[tableFieldIndex];
+      let updatedColumns;
+
+      if (columnToEdit) {
+        // Handle update of an existing column
+        updatedColumns = existingTableField.columns.map((col) =>
+          col.id === columnToEdit.id ? { ...col, ...columnsData[0] } : col,
+        );
       } else {
-        // If table field exists, update its columns
-        const existingTableField = updatedFields[tableFieldIndex];
+        // Handle adding new columns
+        // Validate uniqueness for new columns
+        for (const col of columnsData) {
+          if (!isFieldNameUnique(col.name, currentTabId)) {
+            toast.error(
+              `Column name "${col.name}" already exists. Please use a unique name.`,
+            );
+            return;
+          }
+        }
+
         const newColumns = columnsData.map((col) => ({
           ...col,
           id: crypto.randomUUID(),
+          isCalculated: col.isCalculated || false,
+          calculationFormula: col.calculationFormula || "",
         }));
-        existingTableField.columns = [
-          ...(existingTableField.columns || []),
-          ...newColumns,
-        ];
-        updatedFields[tableFieldIndex] = existingTableField;
+        updatedColumns = [...(existingTableField.columns || []), ...newColumns];
       }
+
+      const updatedTableField = {
+        ...existingTableField,
+        columns: updatedColumns,
+      };
+
+      const newFields = targetTab.fields.map((field, index) =>
+        index === tableFieldIndex ? updatedTableField : field,
+      );
 
       await updateTabFieldsMutation.mutateAsync({
         level: currentLevel,
         tabId: currentTabId,
-        newFields: updatedFields,
+        newFields: newFields,
       });
 
-      toast.success("Columns added successfully");
+      toast.success(
+        columnToEdit
+          ? "Column updated successfully"
+          : "Columns added successfully",
+      );
     } catch (error) {
-      toast.error("Failed to add one or more columns");
+      toast.error(
+        columnToEdit
+          ? "Failed to update column"
+          : "Failed to add one or more columns",
+      );
       console.error(error);
+    } finally {
+      setColumnToEdit(null); // Clear column being edited after submission
     }
   };
 
@@ -321,6 +431,8 @@ export default function CreateTemplate() {
               onDeleteTab={handleDeleteTab}
               onAddField={handleAddField}
               onDeleteField={handleDeleteField}
+              onEditField={handleEditField}
+              onEditColumn={handleEditColumn} // Pass the new handler
             />
           )}
         </div>
@@ -329,7 +441,7 @@ export default function CreateTemplate() {
           <h2 className="mb-4 text-xl font-semibold text-gray-700">
             Form Preview
           </h2>
-          {formData && <FormPreview formData={formData} />}
+          {formData && <FormPreview formData={formData} isReadOnly={true} />}
         </div>
       </div>
 
@@ -342,15 +454,24 @@ export default function CreateTemplate() {
 
       <FieldModal
         isOpen={isFieldModalOpen}
-        onClose={() => setIsFieldModalOpen(false)}
+        onClose={() => {
+          setIsFieldModalOpen(false);
+          setFieldToEdit(null); // Clear field being edited on close
+        }}
         onSubmit={handleFieldSubmit}
         availableFieldTypes={availableFieldTypes}
+        fieldToEdit={fieldToEdit}
       />
 
       <TableColumnModal
         isOpen={isTableColumnModalOpen}
-        onClose={() => setIsTableColumnModalOpen(false)}
+        onClose={() => {
+          setIsTableColumnModalOpen(false);
+          setColumnToEdit(null); // Clear column being edited on close
+        }}
         onSubmit={handleColumnSubmit}
+        columnToEdit={columnToEdit} // Pass the column to edit to the modal
+        allColumnNames={getAllColumnNames()} // Pass all column names for formula hints
       />
     </div>
   );

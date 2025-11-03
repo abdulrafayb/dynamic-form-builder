@@ -17,9 +17,15 @@ function FormDetail() {
       if (!id) return;
       try {
         const data = await getTableDataById(id);
-        console.log("FormDetail - fetchEntry - data from API:", data);
+        console.log("FormDetail - fetched data:", data); // Add log
         setTableEntry(data);
         setEditedFields({
+          header: data.header,
+          lines: data.lines,
+          lineDetails: data.lineDetails,
+        });
+        console.log("FormDetail - editedFields after set:", {
+          // Add log
           header: data.header,
           lines: data.lines,
           lineDetails: data.lineDetails,
@@ -88,12 +94,14 @@ function FormDetail() {
           data={editedFields.header || []}
           onDataChange={(newData) => handleSectionDataChange("header", newData)}
           isHeader={true}
+          formStructure={tableEntry} // Pass the entire tableEntry as formStructure
         />
 
         <h2 className="text-xl font-semibold text-gray-700">Lines Data</h2>
         <EditableFormRenderer
           data={editedFields.lines || []}
           onDataChange={(newData) => handleSectionDataChange("lines", newData)}
+          formStructure={tableEntry} // Pass the entire tableEntry as formStructure
         />
 
         <h2 className="text-xl font-semibold text-gray-700">
@@ -104,6 +112,7 @@ function FormDetail() {
           onDataChange={(newData) =>
             handleSectionDataChange("lineDetails", newData)
           }
+          formStructure={tableEntry} // Pass the entire tableEntry as formStructure
         />
 
         {/* {isEditing && ( */}
