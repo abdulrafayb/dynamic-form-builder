@@ -10,7 +10,11 @@ export async function getTablesData() {
 
     const parseJsonField = (field) => {
       try {
-        if (typeof field === "string" && field !== "[object Object]") {
+        if (
+          typeof field === "string" &&
+          field !== "" &&
+          field !== "[object Object]"
+        ) {
           return JSON.parse(field);
         } else if (typeof field === "object" && field !== null) {
           return field;
@@ -49,7 +53,11 @@ export async function getTableDataById(id) {
 
     const parseJsonField = (field) => {
       try {
-        if (typeof field === "string" && field !== "[object Object]") {
+        if (
+          typeof field === "string" &&
+          field !== "" &&
+          field !== "[object Object]"
+        ) {
           return JSON.parse(field);
         } else if (typeof field === "object" && field !== null) {
           return field;

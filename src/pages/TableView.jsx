@@ -37,11 +37,11 @@ function TableView() {
         });
 
         const uniqueHeaders = [...new Set(allHeaders)];
-        setTableHeaders(uniqueHeaders);
-        setVisibleColumns(uniqueHeaders);
+        setTableHeaders(["ID", ...uniqueHeaders]);
+        setVisibleColumns(["ID", ...uniqueHeaders]);
 
         const rows = data.map((item) => {
-          const rowData = {};
+          const rowData = { ID: item.id }; // Add the ID to rowData
           uniqueHeaders.forEach((header) => {
             let fieldValue = "";
 
@@ -135,9 +135,19 @@ function TableView() {
                     .filter((header) => visibleColumns.includes(header))
                     .map((header) => (
                       <td key={header} className="px-6 py-4">
-                        {typeof row[header] === "object" && row[header] !== null
-                          ? JSON.stringify(row[header])
-                          : row[header]}
+                        {header === "ID" ? (
+                          <span
+                            className="cursor-pointer font-medium text-indigo-600 hover:underline"
+                            onClick={() => navigate(`/form-detail/${row.ID}`)}
+                          >
+                            {row.ID}
+                          </span>
+                        ) : typeof row[header] === "object" &&
+                          row[header] !== null ? (
+                          JSON.stringify(row[header])
+                        ) : (
+                          row[header]
+                        )}
                       </td>
                     ))}
                 </tr>

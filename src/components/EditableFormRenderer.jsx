@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { AsyncPaginate } from "react-select-async-paginate";
 
-function EditableFormRenderer({ data, onDataChange, isHeader }) {
+function EditableFormRenderer({ data, onDataChange, isHeader, isLineDetails }) {
   const [activeTab, setActiveTab] = useState(data[0]?.id || null);
 
   // Basic formula evaluator (CAUTION: For production, use a safe expression evaluator library)
@@ -63,7 +63,6 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
     console.log("Full formula for execution:", fullFormula); // New log
 
     try {
-      // eslint-disable-next-line no-new-func
       return new Function(fullFormula)();
     } catch (error) {
       console.error("Error evaluating formula:", formula, error);
@@ -260,7 +259,8 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
             placeholder={field.field_placeholder || ""}
             onChange={(e) => handleFieldChange(tabId, field.id, e.target.value)}
             required={field.is_required}
-            className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            disabled={field.isCalculated} // Disable if calculated
+            className={`mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${field.isCalculated ? "bg-gray-100" : ""}`}
           />
         );
       case "textarea":
@@ -271,8 +271,9 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
             placeholder={field.field_placeholder || ""}
             onChange={(e) => handleFieldChange(tabId, field.id, e.target.value)}
             required={field.is_required}
+            disabled={field.isCalculated} // Disable if calculated
             rows="3"
-            className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            className={`mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${field.isCalculated ? "bg-gray-100" : ""}`}
           ></textarea>
         );
       case "select":
@@ -282,7 +283,8 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
             value={value}
             onChange={(e) => handleFieldChange(tabId, field.id, e.target.value)}
             required={field.is_required}
-            className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            disabled={field.isCalculated} // Disable if calculated
+            className={`mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${field.isCalculated ? "bg-gray-100" : ""}`}
           >
             {field.field_options.map((option) => (
               <option key={option.value} value={option.value}>
@@ -310,7 +312,8 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
             }
             additional={{ page: 1, endpoint: field.endpoint }}
             isClearable
-            className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            isDisabled={field.isCalculated} // Disable if calculated
+            className={`mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${field.isCalculated ? "bg-gray-100" : ""}`}
             placeholder={field.field_placeholder || "Select an option..."}
             menuPortalTarget={document.body}
           />
@@ -495,7 +498,7 @@ function EditableFormRenderer({ data, onDataChange, isHeader }) {
           <div key={tab.id} className="space-y-4">
             {tab.fields.length > 0 ? (
               <div
-                className={`space-y-4 ${isHeader ? "grid grid-cols-3 gap-4" : ""}`}
+                className={`space-y-4 ${isHeader || isLineDetails ? "grid grid-cols-3 gap-4" : ""}`}
               >
                 {tab.fields.map((field) => (
                   <div key={field.id} className="space-y-1">

@@ -37,6 +37,129 @@ function FormDetail() {
     fetchEntry();
   }, [id]);
 
+  useEffect(() => {
+    let totalSum = 0;
+    let discountSum = 0;
+    let vatSum = 0;
+
+    // console.log(
+    //   "useEffect - editedFields.lines:",
+    //   JSON.stringify(editedFields.lines, null, 2),
+    // ); // Debug log
+
+    if (editedFields.lines && Array.isArray(editedFields.lines)) {
+      editedFields.lines.forEach((tab) => {
+        if (tab.fields && Array.isArray(tab.fields)) {
+          tab.fields.forEach((field) => {
+            if (
+              field.field_type === "table" &&
+              field.tableData &&
+              Array.isArray(field.tableData)
+            ) {
+              field.tableData.forEach((row) => {
+                // console.log("Processing row:", row); // New debug log
+                // Sum 'total' field
+                // console.log(
+                //   "Row total value:",
+                //   row.Total,
+                //   "is number?",
+                //   !isNaN(Number(row.Total)),
+                // ); // New debug log
+                if (row.Total && !isNaN(Number(row.Total))) {
+                  totalSum += Number(row.Total);
+                }
+                // Sum 'discount' field
+                // console.log(
+                //   "Row discount value:",
+                //   row.Discount,
+                //   "is number?",
+                //   !isNaN(Number(row.Discount)),
+                // ); // New debug log
+                if (row.Discount && !isNaN(Number(row.Discount))) {
+                  discountSum += Number(row.Discount);
+                }
+                // Sum 'vat' field
+                // console.log(
+                //   "Row vat value:",
+                //   row.VAT,
+                //   "is number?",
+                //   !isNaN(Number(row.VAT)),
+                // ); // New debug log
+                if (row.VAT && !isNaN(Number(row.VAT))) {
+                  vatSum += Number(row.VAT);
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+
+    // console.log("Calculated Sums:", { totalSum, discountSum, vatSum }); // Debug log
+
+    setEditedFields((prevDetails) => {
+      const newLineDetails = (prevDetails.lineDetails || []).map(
+        (detailTab) => ({ ...detailTab }),
+      );
+
+      // console.log(
+      //   "useEffect - prevDetails.lineDetails:",
+      //   prevDetails.lineDetails,
+      // ); // Debug log
+      // console.log(
+      //   "useEffect - newLineDetails (before update):",
+      //   newLineDetails,
+      // ); // Debug log
+
+      const updateOrCreateField = (tab, fieldName, value) => {
+        let field = tab.fields.find((f) => f.field_name === fieldName);
+        if (field) {
+          field.field_value = value.toFixed(2);
+          field.isCalculated = true; // Mark existing field as calculated
+        } else {
+          tab.fields.push({
+            id: `${fieldName}-${Date.now()}`,
+            field_name: fieldName,
+            field_type: "text", // Assuming text type for sum fields
+            field_value: value.toFixed(2),
+            is_required: false,
+            is_hidden: false,
+            isCalculated: true, // Mark new field as calculated
+          });
+        }
+      };
+
+      // Ensure there's at least one tab in lineDetails to add fields to
+      if (newLineDetails.length === 0) {
+        newLineDetails.push({
+          id: "default-line-details",
+          name: "Details",
+          fields: [],
+        });
+      }
+
+      // Assuming calculations go into the first lineDetails tab
+      const targetTab = newLineDetails[0];
+
+      if (totalSum > 0) updateOrCreateField(targetTab, "Total Sum", totalSum);
+      if (discountSum > 0)
+        updateOrCreateField(targetTab, "Discount Sum", discountSum);
+      if (vatSum > 0) updateOrCreateField(targetTab, "VAT Sum", vatSum);
+
+      const totalAfterDiscount = totalSum - discountSum;
+      updateOrCreateField(
+        targetTab,
+        "Total After Discount",
+        totalAfterDiscount,
+      );
+
+      return {
+        ...prevDetails,
+        lineDetails: newLineDetails,
+      };
+    });
+  }, [editedFields.lines]);
+
   const handleSectionDataChange = (fieldName, newData) => {
     setEditedFields((prev) => ({
       ...prev,
@@ -113,6 +236,7 @@ function FormDetail() {
             handleSectionDataChange("lineDetails", newData)
           }
           formStructure={tableEntry} // Pass the entire tableEntry as formStructure
+          isLineDetails={true} // New prop for line details grid layout
         />
 
         {/* {isEditing && ( */}
